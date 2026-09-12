@@ -8,6 +8,7 @@ import DetectionSignals from './components/DetectionSignals';
 import ResponseTiming from './components/ResponseTiming';
 import VerdictPanel from './components/VerdictPanel';
 import CallHistory from './components/CallHistory';
+import ReviewHub from './components/ReviewHub';
 import { generateMockScenario, callDetectApi } from './utils/audioUtils';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'http://localhost:8000';
@@ -182,6 +183,7 @@ La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosó
         setActiveMode={setActiveMode}
       />
 
+      {activeMode === 'review' ? <ReviewHub /> : <>
       {/* Main Responsive Grid */}
       <main style={{
         maxWidth: '1400px',
@@ -267,6 +269,7 @@ La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosó
           }}
         />
       </main>
+      </>}
 
       {/* Footer */}
       <footer style={{

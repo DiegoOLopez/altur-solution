@@ -1,6 +1,6 @@
 import React from 'react';
 import ChameleonLogo from './ChameleonLogo';
-import { PhoneCall, FileAudio } from 'lucide-react';
+import { PhoneCall, FileAudio, ListChecks } from 'lucide-react';
 
 export default function Navbar({ activeMode, setActiveMode }) {
   return (
@@ -26,7 +26,7 @@ export default function Navbar({ activeMode, setActiveMode }) {
         <ChameleonLogo size={40} showWordmark={true} />
 
         {/* High-End Segmented Switcher for Both Endpoints */}
-        <div className="segmented-track" style={{ maxWidth: '440px', width: '100%' }}>
+        <div className="segmented-track" style={{ maxWidth: '620px', width: '100%' }}>
           <button
             className={`segmented-btn ${activeMode === 'batch' ? 'active' : ''}`}
             onClick={() => setActiveMode('batch')}
@@ -34,6 +34,14 @@ export default function Navbar({ activeMode, setActiveMode }) {
             <FileAudio size={16} />
             <span>Audio Forensics</span>
             <span className="font-mono" style={{ fontSize: '0.7rem', opacity: 0.65 }}>/detect</span>
+          </button>
+
+          <button
+            className={`segmented-btn ${activeMode === 'review' ? 'active' : ''}`}
+            onClick={() => setActiveMode('review')}
+          >
+            <ListChecks size={16} />
+            <span>Revisar notas</span>
           </button>
 
           <button
