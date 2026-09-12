@@ -1,10 +1,10 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { UploadCloud, Sparkles, FileAudio, Bot, UserCheck, ArrowRight } from 'lucide-react';
+import { UploadCloud, FileAudio, ArrowRight } from 'lucide-react';
+
 import {
   encodeStereoWav8kHz,
   resampleTo8kHzStereo,
   arrayBufferToBase64,
-  generateMockScenario,
   inspectWavMetadata,
   readWavPcmSamples,
   formatBytes
@@ -18,23 +18,35 @@ const INGESTION_STEPS = [
   { id: 'rate', label: 'Validación 8 kHz', sublabel: (d) => d?.rate || 'En espera de archivo' },
   { id: 'pcm', label: 'Validación 16-bit PCM', sublabel: (d) => d?.pcm || 'En espera de archivo' },
   { id: 'split', label: 'Separación de canales', sublabel: () => 'Canal 0 (Llamante) • Canal 1 (Agente)' },
-  { id: 'caller', label: 'Extracción del llamante', sublabel: () => 'Canal 0 seleccionado para clasificación' },
-  { id: 'b64', label: 'Codificación Base64', sublabel: (d) => d?.base64Bytes ? `Payload ${d.base64Bytes} listo para HTTP` : 'Payload listo para HTTP' }
+  {
+    id: 'caller',
+    label: 'Preparación del análisis',
+    sublabel: () => 'Canal 0 + Canal 1 disponibles para el detector'
+  },
+  {
+    id: 'b64',
+    label: 'Preparación de solicitud',
+    sublabel: (d) =>
+      d?.base64Bytes
+        ? `Payload ${d.base64Bytes} listo para HTTP`
+        : 'Payload listo para HTTP'
+  }
 ];
 
 const ANALYSIS_STEPS = [
-  { id: 'post', label: 'POST /detect', sublabel: () => 'HTTP 200 • application/json' },
-  { id: 'ai', label: 'Análisis IA', sublabel: () => 'Motor acústico-comportamental + semántico' },
+  {
+    id: 'post',
+    label: 'POST /detect',
+    sublabel: () => 'Solicitud HTTP al detector forense'
+  },
+  {
+    id: 'ai',
+    label: 'Análisis del modelo',
+    sublabel: () => 'Motor acústico-comportamental'
+  },
   { id: 'verdict', label: 'Veredicto forense', sublabel: () => 'Humano vs. Sintético' }
 ];
 
-const PRESET_DETAIL = {
-  format: 'WAV PCM nativo (dataset Altur)',
-  stereo: 'Estéreo 2 canales',
-  rate: '8,000 Hz exacto',
-  pcm: '16-bit PCM sin pérdida',
-  base64Bytes: ''
-};
 
 function buildNormDetail(meta, b64Len) {
   return {
@@ -118,25 +130,25 @@ export default function BatchInput({
     };
   }, [isAnalyzing]);
 
-  const commitAudio = (title, detailInfo, channel0, channel1, duration, base64, mockResult) => {
+  const commitAudio = (
+    title,
+    detailInfo,
+    channel0,
+    channel1,
+    duration,
+    base64
+  ) => {
     setDetail(detailInfo);
-    onAudioReady({ title, channel0, channel1, duration, base64, mockResult });
+
+    onAudioReady({
+      title,
+      channel0,
+      channel1,
+      duration,
+      base64
+    });
   };
 
-  const handleSelectPreset = (type) => {
-    const mock = generateMockScenario(type);
-
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const audioBuffer = audioCtx.createBuffer(2, mock.channel0.length, 8000);
-    audioBuffer.copyToChannel(mock.channel0, 0);
-    audioBuffer.copyToChannel(mock.channel1, 1);
-
-    const wavArrayBuffer = encodeStereoWav8kHz(audioBuffer);
-    const b64 = arrayBufferToBase64(wavArrayBuffer);
-
-    const presetDetail = { ...PRESET_DETAIL, base64Bytes: formatBytes(b64.length) };
-    commitAudio(mock.title, presetDetail, mock.channel0, mock.channel1, mock.duration, b64, mock);
-  };
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
@@ -148,7 +160,7 @@ export default function BatchInput({
 
       // Norm-compliant WAV (stereo • 8 kHz • 16-bit PCM): no transcoding needed
       if (meta && meta.audioFormat === 1 &&
-          meta.channels === 2 && meta.sampleRate === 8000 && meta.bitsPerSample === 16) {
+        meta.channels === 2 && meta.sampleRate === 8000 && meta.bitsPerSample === 16) {
         const { channel0, channel1 } = readWavPcmSamples(arrayBuffer, meta);
         const b64 = arrayBufferToBase64(arrayBuffer);
         commitAudio(
@@ -157,8 +169,7 @@ export default function BatchInput({
           channel0,
           channel1,
           channel0.length / 8000,
-          b64,
-          null
+          b64
         );
         return;
       }
@@ -179,8 +190,7 @@ export default function BatchInput({
         resampledBuffer.getChannelData(0),
         resampledBuffer.getChannelData(1),
         resampledBuffer.duration,
-        b64,
-        null
+        b64
       );
     } catch (err) {
       console.error('Error al procesar archivo:', err);
@@ -239,9 +249,16 @@ export default function BatchInput({
             POST /detect
           </span>
         </div>
-        <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-          Audita grabaciones telefónicas estéreo de 8kHz del dataset de Altur: el pipeline valida formato,
-          separa canales y extrae al llamante antes del envío forense al endpoint.
+        <p
+          style={{
+            fontSize: '0.84rem',
+            color: 'var(--text-secondary)',
+            lineHeight: 1.5
+          }}
+        >
+          Analiza grabaciones telefónicas estéreo mediante el endpoint
+          forense. El audio se valida y prepara para enviar la señal
+          original al detector acústico y comportamental.
         </p>
       </div>
 
@@ -299,72 +316,7 @@ export default function BatchInput({
         </div>
       </div>
 
-      {/* Quick Test Samples */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <span style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Sparkles size={14} color="#0284c7" />
-          Muestras precargadas del dataset Altur:
-        </span>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-          <button
-            className="btn-altur-outline"
-            style={{
-              padding: '14px',
-              borderRadius: 'var(--radius-sm)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              textAlign: 'left'
-            }}
-            onClick={() => handleSelectPreset('deepfake')}
-          >
-            <div style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '10px',
-              background: 'var(--accent-rose-light)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <Bot size={18} color="#e11d48" />
-            </div>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: '0.86rem', color: 'var(--altur-black)' }}>Muestra Deepfake</div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Síntesis neuronal TTS</div>
-            </div>
-          </button>
 
-          <button
-            className="btn-altur-outline"
-            style={{
-              padding: '14px',
-              borderRadius: 'var(--radius-sm)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              textAlign: 'left'
-            }}
-            onClick={() => handleSelectPreset('human')}
-          >
-            <div style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '10px',
-              background: 'var(--accent-emerald-light)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <UserCheck size={18} color="#059669" />
-            </div>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: '0.86rem', color: 'var(--altur-black)' }}>Muestra Humana</div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Cliente bancario real</div>
-            </div>
-          </button>
-        </div>
-      </div>
 
       {/* Active File Notification */}
       {hasAudio && (
@@ -411,7 +363,7 @@ export default function BatchInput({
       >
         {isAnalyzing ? (
           <><span className="rotate-spin" style={{ width: '15px', height: '15px', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: '#ffffff', borderRadius: '50%', display: 'inline-block' }}></span>
-          <span>Ejecutando POST /detect...</span></>
+            <span>Ejecutando POST /detect...</span></>
         ) : (
           <>
             <span>Ejecutar Detección Forense (POST /detect)</span>
