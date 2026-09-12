@@ -1,0 +1,105 @@
+import React from 'react';
+
+/**
+ * ChameleonLogo: Vector logo based on Altur's official geometric chameleon identity.
+ * Adapted for clean light theme with deep Altur black (#090d16) and iridescent acoustic accents.
+ */
+export default function ChameleonLogo({ size = 38, showWordmark = true, className = '' }) {
+  return (
+    <div className={`chameleon-brand ${className}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '12px' }}>
+      {/* Chameleon SVG Icon */}
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 120 120"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{
+          filter: 'drop-shadow(0 4px 12px rgba(15, 23, 42, 0.12))',
+          transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+          flexShrink: 0
+        }}
+      >
+        <defs>
+          <linearGradient id="chameleonAlturGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#090d16" />
+            <stop offset="60%" stopColor="#0f172a" />
+            <stop offset="100%" stopColor="#0284c7" />
+          </linearGradient>
+          <linearGradient id="crestGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#0284c7" />
+            <stop offset="50%" stopColor="#059669" />
+            <stop offset="100%" stopColor="#6366f1" />
+          </linearGradient>
+        </defs>
+
+        {/* Tail Spiral */}
+        <path
+          d="M 50 95 C 38 95 28 85 28 73 C 28 61 38 51 50 51 C 60 51 68 59 68 69 C 68 77 62 83 54 83 C 48 83 44 79 44 73 C 44 69 47 66 51 66"
+          stroke="url(#chameleonAlturGrad)"
+          strokeWidth="12"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+
+        {/* Chameleon Head & Angular Body (Geometric Altur silhouette) */}
+        <path
+          d="M 52 46 L 75 23 C 80 18 88 18 93 23 L 102 32 C 107 37 107 45 102 50 L 80 72 C 75 77 67 77 62 72 L 52 62 Z"
+          fill="url(#chameleonAlturGrad)"
+        />
+
+        {/* Snout Tip */}
+        <path
+          d="M 102 32 L 110 30 L 106 38 Z"
+          fill="#0284c7"
+        />
+
+        {/* Chameleon Concentric Eye */}
+        <circle cx="88" cy="37" r="7.5" fill="#ffffff" />
+        <circle cx="88" cy="37" r="4.5" fill="url(#crestGrad)" />
+        <circle cx="89" cy="36" r="1.5" fill="#ffffff" />
+
+        {/* Animated Sound Acoustic dots */}
+        <circle cx="106" cy="18" r="2.5" fill="#059669" opacity="0.85" />
+        <circle cx="114" cy="24" r="2" fill="#0284c7" opacity="0.85" />
+        <circle cx="116" cy="34" r="1.8" fill="#6366f1" opacity="0.85" />
+      </svg>
+
+      {/* Brand Wordmark */}
+      {showWordmark && (
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{
+              fontSize: '1.45rem',
+              fontWeight: '800',
+              letterSpacing: '-0.04em',
+              color: '#090d16',
+              lineHeight: 1.1
+            }}>
+              AuraVoice
+            </span>
+            <span style={{
+              fontSize: '0.66rem',
+              fontWeight: '800',
+              padding: '2px 8px',
+              borderRadius: '999px',
+              background: '#090d16',
+              color: '#ffffff',
+              letterSpacing: '0.06em'
+            }}>
+              ALTUR
+            </span>
+          </div>
+          <span style={{
+            fontSize: '0.74rem',
+            color: '#64748b',
+            fontWeight: '600',
+            letterSpacing: '-0.01em'
+          }}>
+            Defensa Biométrica de Voz en Telefonía Bancaria
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,326 @@
+:root {
+  /* Avant-Garde Clean Light Theme */
+  --bg-app: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #ffffff;
+  --bg-glass: rgba(255, 255, 255, 0.85);
+  --bg-subtle: #f1f5f9;
+  --bg-accent-soft: #eef2ff;
+
+  /* Altur & Chameleon Iridescent Accents */
+  --altur-black: #090d16;
+  --altur-dark: #0f172a;
+  
+  --accent-cyan: #0284c7;
+  --accent-cyan-light: #e0f2fe;
+  --accent-emerald: #059669;
+  --accent-emerald-light: #ecfdf5;
+  --accent-violet: #6366f1;
+  --accent-violet-light: #eef2ff;
+  --accent-rose: #e11d48;
+  --accent-rose-light: #fff1f2;
+  --accent-amber: #d97706;
+  --accent-amber-light: #fffbeb;
+
+  /* Typography */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-faint: #94a3b8;
+
+  /* Borders & Shadows */
+  --border-card: rgba(15, 23, 42, 0.08);
+  --border-focus: rgba(2, 132, 199, 0.4);
+  --shadow-sm: 0 2px 8px -2px rgba(15, 23, 42, 0.05), 0 1px 3px 0 rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 12px 30px -10px rgba(15, 23, 42, 0.08), 0 4px 12px -2px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 25px 60px -15px rgba(15, 23, 42, 0.12), 0 8px 24px -4px rgba(15, 23, 42, 0.06);
+  --shadow-glow-cyan: 0 10px 30px -5px rgba(2, 132, 199, 0.25);
+  --shadow-glow-rose: 0 10px 30px -5px rgba(225, 29, 72, 0.25);
+  --shadow-glow-emerald: 0 10px 30px -5px rgba(5, 150, 105, 0.25);
+
+  --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --radius-xl: 28px;
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --radius-sm: 10px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  min-height: 100vh;
+  overflow-x: hidden;
+  background-image: 
+    radial-gradient(ellipse 70% 50% at 20% 0%, rgba(2, 132, 199, 0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 15%, rgba(99, 102, 241, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 50% at 50% 100%, rgba(5, 150, 105, 0.05) 0%, transparent 70%);
+  background-attachment: fixed;
+}
+
+/* Avant-Garde Clean Glass Cards */
+.avant-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+  position: relative;
+}
+
+.avant-card:hover {
+  box-shadow: var(--shadow-lg);
+  border-color: rgba(15, 23, 42, 0.14);
+}
+
+/* Floating Navigation Dock */
+.floating-dock {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.08);
+  border-radius: 9999px;
+  padding: 6px 12px;
+}
+
+/* Segmented Switcher */
+.segmented-track {
+  background: var(--bg-subtle);
+  padding: 5px;
+  border-radius: 9999px;
+  display: flex;
+  position: relative;
+  gap: 4px;
+}
+
+.segmented-btn {
+  flex: 1;
+  padding: 10px 22px;
+  border-radius: 9999px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.88rem;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-muted);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  user-select: none;
+}
+
+.segmented-btn.active {
+  background: var(--bg-surface);
+  color: var(--altur-black);
+  box-shadow: 0 4px 15px -2px rgba(15, 23, 42, 0.12), 0 2px 4px 0 rgba(15, 23, 42, 0.06);
+}
+
+.segmented-btn:hover:not(.active) {
+  color: var(--text-primary);
+}
+
+/* Primary High-Impact Buttons */
+.btn-altur {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 28px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  border: none;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.btn-altur-primary {
+  background: linear-gradient(135deg, #090d16 0%, #1e293b 100%);
+  color: #ffffff;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25);
+}
+
+.btn-altur-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 35px -5px rgba(15, 23, 42, 0.35);
+  background: linear-gradient(135deg, #0284c7 0%, #090d16 100%);
+}
+
+.btn-altur-rose {
+  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+  color: #ffffff;
+  box-shadow: var(--shadow-glow-rose);
+}
+
+.btn-altur-rose:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 35px -5px rgba(225, 29, 72, 0.4);
+}
+
+.btn-altur-outline {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-card);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-altur-outline:hover:not(:disabled) {
+  border-color: rgba(15, 23, 42, 0.2);
+  transform: translateY(-1px);
+}
+
+/* Avant-Garde Badge Tags */
+.altur-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.badge-cyan {
+  background: var(--accent-cyan-light);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(2, 132, 199, 0.2);
+}
+
+.badge-emerald {
+  background: var(--accent-emerald-light);
+  color: var(--accent-emerald);
+  border: 1px solid rgba(5, 150, 105, 0.25);
+}
+
+.badge-rose {
+  background: var(--accent-rose-light);
+  color: var(--accent-rose);
+  border: 1px solid rgba(225, 29, 72, 0.25);
+}
+
+.badge-violet {
+  background: var(--accent-violet-light);
+  color: var(--accent-violet);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+/* Voice Equalizer animation */
+.voice-wave-bars {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+}
+
+.voice-wave-bar {
+  width: 4px;
+  border-radius: 2px;
+  animation: bar-dance 1s ease-in-out infinite alternate;
+}
+
+.voice-wave-bar:nth-child(1) { height: 40%; animation-delay: 0.1s; }
+.voice-wave-bar:nth-child(2) { height: 85%; animation-delay: 0.3s; }
+.voice-wave-bar:nth-child(3) { height: 100%; animation-delay: 0.2s; }
+.voice-wave-bar:nth-child(4) { height: 60%; animation-delay: 0.4s; }
+.voice-wave-bar:nth-child(5) { height: 35%; animation-delay: 0.15s; }
+
+@keyframes bar-dance {
+  0% { transform: scaleY(0.3); }
+  100% { transform: scaleY(1.3); }
+}
+
+/* Radar Scanner Sweep */
+.radar-sweep-container {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.radar-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  opacity: 0.25;
+  animation: radar-expand 2s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+}
+
+.radar-ring:nth-child(2) {
+  animation-delay: 0.6s;
+}
+
+.radar-ring:nth-child(3) {
+  animation-delay: 1.2s;
+}
+
+@keyframes radar-expand {
+  0% { transform: scale(0.6); opacity: 0.8; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* Spin loader (used in ForensicPipeline active steps) */
+.rotate-spin {
+  animation: rotate-spin 1s linear infinite;
+}
+
+@keyframes rotate-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Pulsing status dots */
+.dot-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  position: relative;
+}
+
+.dot-pulse.green {
+  background-color: var(--accent-emerald);
+  box-shadow: 0 0 10px rgba(5, 150, 105, 0.6);
+}
+
+.dot-pulse.red {
+  background-color: var(--accent-rose);
+  box-shadow: 0 0 10px rgba(225, 29, 72, 0.6);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Clean subtle scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-app);
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
