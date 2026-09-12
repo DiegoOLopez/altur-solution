@@ -13,6 +13,18 @@ Para instalar `uv` en macOS con Homebrew:
 brew install uv
 ```
 
+Para instalar `uv` en Windows con PowerShell:
+
+```powershell
+irm https://astral.sh/uv/install.ps1 | iex
+```
+
+También puedes instalarlo con `winget`:
+
+```powershell
+winget install --id=astral-sh.uv -e
+```
+
 ## Instalación
 
 Desde la carpeta `backend`:
