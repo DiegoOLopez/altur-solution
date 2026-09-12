@@ -433,14 +433,26 @@ El tono presenta inflexiones orgánicas, respiración audible entre frases y un 
 }
 
 /**
- * Calls the batch POST /detect endpoint
+ * Calls the batch POST /detect endpoint.
+ * Sends the raw WAV as multipart/form-data under the field `file`,
+ * matching the FastAPI contract (UploadFile `file`).
  */
 export async function callDetectApi(baseUrl, base64Audio) {
   const url = `${baseUrl.replace(/\/+$/, '')}/detect`;
+
+  const fileBytes = base64ToArrayBuffer(base64Audio);
+  if (!fileBytes || fileBytes.byteLength < 44) {
+    // Not a real WAV payload (e.g. preloaded placeholder base64) -> demo fallback
+    throw new Error('No raw WAV payload available; showing demo verdict.');
+  }
+
+  const blob = new Blob([fileBytes], { type: 'audio/wav' });
+  const formData = new FormData();
+  formData.append('file', blob, 'audio.wav');
+
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ audio: base64Audio })
+    body: formData
   });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status} from /detect`);

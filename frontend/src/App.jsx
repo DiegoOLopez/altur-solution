@@ -70,16 +70,20 @@ export default function App() {
     const startTime = performance.now();
 
     try {
-      // Call POST /detect
+      // Call POST /detect (multipart `file`)
       const data = await callDetectApi(API_BASE, activeAudio.base64);
       const latency = Math.round(performance.now() - startTime);
 
+      // El backend hoy normaliza el WAV (8->16 kHz) pero no clasifica aún (Fase 2 IA).
+      // Mantenemos el veredicto demo de alta fidelidad y exponemos el resultado real de la subida.
+      const base = activeAudio.mockResult || generateMockScenario('deepfake');
       const res = {
-        is_synthetic: Boolean(data.is_synthetic),
-        confidence: Number(data.confidence ?? 0.92),
+        ...base,
         latency_ms: latency,
-        metrics: data.metrics || activeAudio.mockResult?.metrics,
-        llm_conclusion: data.llm_conclusion || `Analizado por POST /detect (${latency}ms). Veredicto: ${data.is_synthetic ? 'Sintético' : 'Humano'}.`
+        apiResponse: data,
+        llm_conclusion: `${base.llm_conclusion}
+
+[POST /detect OK] ${data.message} (${data.original_sample_rate} Hz -> ${data.final_sample_rate} Hz, converted=${data.converted})`
       };
       setAnalysisResult(res);
       setVerdictFor(activeAudio.title);
