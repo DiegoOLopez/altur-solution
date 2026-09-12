@@ -3,7 +3,6 @@ import {
   AudioLines,
   Check,
   ChevronDown,
-  Clock3,
   CornerDownLeft,
   Headphones,
   Mic2,
@@ -41,8 +40,8 @@ function NoteRow({ note, playing, onPlay, onClassify }) {
   </article>;
 }
 
-function MetricCard({ label, value, detail, tone, icon: Icon }) {
-  return <article className="review-metric-card"><div className={`review-metric-icon ${tone}`}><Icon size={18} strokeWidth={2.2} /></div><div><p>{label}</p><strong>{value}</strong><span className={tone}>{detail}</span></div></article>;
+function MetricCard({ label, value, detail, tone }) {
+  return <article className={`review-metric-card ${tone}`}><div><p>{label}</p><strong>{value}</strong><span>{detail}</span></div><div className="review-metric-rule"><i /></div></article>;
 }
 
 export default function ReviewHub() {
@@ -71,9 +70,12 @@ export default function ReviewHub() {
   };
 
   return <div className="review-hub">
-    <section className="review-intro"><div><p className="review-eyebrow"><span />CENTRO DE REVISIÓN</p><h1>Haz que cada voz<br /><em>cuente.</em></h1><p className="review-intro-copy">Revisa tus notas de audio y ayuda a Vocalis a entender mejor las conversaciones de tu equipo.</p></div><button className="review-primary-button" onClick={() => setIsTrainingOpen(true)}><Sparkles size={18} />Entrenar de nuevo</button></section>
-    <section className="review-metrics" aria-label="Resumen de notas"><MetricCard label="Notas nuevas totales" value={initialNotes.length} detail="En esta sesión" tone="green" icon={AudioLines} /><MetricCard label="Notas revisadas" value={reviewedCount} detail="Clasificadas por ti" tone="blue" icon={Check} /><MetricCard label="Notas sin revisar" value={notes.length} detail="Necesitan tu atención" tone="orange" icon={Clock3} /></section>
-    <section className="review-list-section"><button className="review-section-heading" onClick={() => setIsExpanded((current) => !current)} aria-expanded={isExpanded}><span><span className="review-section-icon"><Headphones size={18} /></span><span><strong>Revisar notas</strong><small>{notes.length} notas esperan tu revisión</small></span></span><ChevronDown className={isExpanded ? 'rotate' : ''} size={21} /></button>{isExpanded && <div className="review-notes-list">{notes.length ? notes.map((note) => <NoteRow key={note.id} note={note} playing={playingId === note.id} onPlay={() => setPlayingId(playingId === note.id ? null : note.id)} onClassify={() => classify(note.id)} />) : <div className="review-empty-state"><Check size={20} /><strong>Todo revisado</strong><span>Ya clasificaste todas las notas de esta sesión.</span></div>}</div>}</section>
+    <section className="review-intro"><div><p className="review-eyebrow"><span />Centro de revisión</p><h1>Haz que cada voz<br /><em>cuente.</em></h1><p className="review-intro-copy">Revisa tus notas de audio y ayuda a Vocalis a entender mejor las conversaciones de tu equipo.</p></div><button className="review-primary-button" onClick={() => setIsTrainingOpen(true)}><Sparkles size={18} />Entrenar de nuevo</button></section>
+    <div className="review-bento-grid">
+      <section className="review-metrics" aria-label="Resumen de notas"><MetricCard label="Notas nuevas totales" value={initialNotes.length} detail="En esta sesión" tone="green" /><MetricCard label="Notas revisadas" value={reviewedCount} detail="Clasificadas por ti" tone="blue" /><MetricCard label="Notas sin revisar" value={notes.length} detail="Necesitan tu atención" tone="orange" /></section>
+      <section className="review-model-card"><div className="review-model-header"><div><p className="review-card-kicker">Modelo en entrenamiento</p><h2>Vocalis / base-01</h2></div><span className="review-model-state">Listo para datos</span></div><div className="review-model-log"><p><time>10:42:18</time><span>4 notas nuevas detectadas</span></p><p><time>10:43:02</time><span>{reviewedCount} muestras clasificadas</span></p><p><time>10:43:19</time><span>Esperando tu siguiente lote</span></p></div></section>
+      <section className="review-list-section"><button className="review-section-heading" onClick={() => setIsExpanded((current) => !current)} aria-expanded={isExpanded}><span><span className="review-section-icon"><Headphones size={18} /></span><span><strong>Revisar notas</strong><small>{notes.length} notas esperan tu revisión</small></span></span><ChevronDown className={isExpanded ? 'rotate' : ''} size={21} /></button>{isExpanded && <div className="review-notes-list">{notes.length ? notes.map((note) => <NoteRow key={note.id} note={note} playing={playingId === note.id} onPlay={() => setPlayingId(playingId === note.id ? null : note.id)} onClassify={() => classify(note.id)} />) : <div className="review-empty-state"><Check size={20} /><strong>Todo revisado</strong><span>Ya clasificaste todas las notas de esta sesión.</span></div>}</div>}</section>
+    </div>
     <p className="review-privacy-note"><Mic2 size={14} />Tus revisiones ayudan a mejorar el modelo. Los audios se procesan de forma privada.</p>
     {isTrainingOpen && <div className="review-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsTrainingOpen(false); }}><section className="review-training-modal" role="dialog" aria-modal="true" aria-labelledby="review-training-title"><button className="review-close-button" onClick={() => setIsTrainingOpen(false)} aria-label="Cerrar"><X size={18} /></button><div className="review-modal-symbol"><Sparkles size={22} /></div><p className="review-eyebrow">NUEVA VERSIÓN</p><h2 id="review-training-title">Ingresa el nombre<br />del nuevo modelo</h2><p className="review-modal-copy">Dale un nombre para reconocerlo fácilmente cuando esté listo.</p><form onSubmit={submitTraining}><label htmlFor="review-model-name">Nombre del modelo</label><div className="review-input-wrap"><input id="review-model-name" ref={inputRef} value={modelName} onChange={(event) => setModelName(event.target.value)} placeholder="Ej. Vocalis primavera" /><span><CornerDownLeft size={13} />Enter</span></div><button className="review-primary-button review-modal-submit" type="submit">Comenzar entrenamiento <Sparkles size={16} /></button></form></section></div>}
   </div>;
