@@ -1,3 +1,11 @@
+"""
+Rutas de revisión /review.
+
+Permiten a un humano (o al flujo de segundo filtro) consultar las
+grabaciones persistidas, reproducirlas y clasificarlas. Cada grabación
+tiene un estado (pendiente, revisado o eliminado) que alimenta tanto el
+Review Hub del frontend como el dataset de entrenamiento del modelo.
+"""
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -22,6 +30,10 @@ router = APIRouter(
 
 
 def serialize_audio(audio: Audio) -> AudioReviewResponse:
+    """
+    Convierte un registro ``Audio`` en la representación que consume el
+    frontend, incluyendo la URL relativa para reproducir la grabación.
+    """
     return AudioReviewResponse(
         id=audio.id,
         ref=audio.ref,
@@ -40,6 +52,9 @@ def serialize_audio(audio: Audio) -> AudioReviewResponse:
 
 @router.get("/db/health")
 def database_health(db: Session = Depends(get_db)):
+    """
+    Health check: verifica que la conexión a MySQL responde (SELECT 1).
+    """
     try:
         db.execute(text("SELECT 1"))
     except Exception as error:
@@ -57,6 +72,9 @@ def list_audios(
     include_deleted: bool = Query(default=False),
     db: Session = Depends(get_db),
 ):
+    """
+    Lista las grabaciones, ordenadas de la más reciente a la más antigua.
+    """
     query = db.query(Audio)
     if status is not None:
         query = query.filter(Audio.status == status)
@@ -71,6 +89,9 @@ def list_audios(
 
 @router.get("/stats")
 def review_stats(db: Session = Depends(get_db)):
+    """
+    Resume las grabaciones pendientes y clasificadas del Review Hub.
+    """
     pending = db.query(func.count(Audio.id)).filter(
         Audio.status == AudioStatus.NO_REVISADO
     ).scalar() or 0
@@ -86,6 +107,9 @@ def review_stats(db: Session = Depends(get_db)):
 
 
 def get_audio_or_404(audio_id: int, db: Session) -> Audio:
+    """
+    Devuelve la grabación por id, o HTTP 404 si no existe o fue eliminada.
+    """
     audio = db.query(Audio).filter(Audio.id == audio_id).first()
     if audio is None or audio.status == AudioStatus.DELETED:
         raise HTTPException(status_code=404, detail="Audio not found.")
@@ -106,6 +130,10 @@ BUCKET_NAME = "grabaciones"
 
 @router.get("/audios/{audio_id}/stream")
 def stream_audio(audio_id: int, db: Session = Depends(get_db)):
+    """
+    Sirve la grabación guardada localmente. Valida que la ``storage_key``
+    apunte dentro del directorio de audio para evitar path traversal.
+    """
     audio = get_audio_or_404(audio_id, db)
     
     try:
@@ -139,6 +167,9 @@ def classify_audio(
     payload: AudioClassificationRequest,
     db: Session = Depends(get_db),
 ):
+    """
+    Marca una grabación como sintética o real y la pasa a estado revisado.
+    """
     audio = get_audio_or_404(audio_id, db)
     audio.is_synthetic = payload.classification == "synthetic"
     audio.status = AudioStatus.REVISADO
@@ -156,6 +187,10 @@ def classify_audio(
     response_model=AudioMutationResponse,
 )
 def delete_audio(audio_id: int, db: Session = Depends(get_db)):
+    """
+    Eliminación lógica: marca la grabación como borrada sin removerla del
+    bucket ni del disco.
+    """
     audio = get_audio_or_404(audio_id, db)
     audio.status = AudioStatus.DELETED
     db.commit()
