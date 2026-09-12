@@ -14,6 +14,7 @@ import io
 import json
 import sys
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
@@ -26,7 +27,7 @@ from sklearn.metrics import roc_auc_score, accuracy_score, confusion_matrix
 from sklearn.model_selection import train_test_split
 from sqlalchemy.orm import Session
 
-from backend.core.database import get_db
+from backend.core.database import SessionLocal, get_db
 from backend.models.audio import Audio, AudioStatus
 from backend.models.trained_model import TrainedModel, ModelStatus
 
@@ -67,6 +68,8 @@ router = APIRouter(
     tags=["Training"],
 )
 
+training_executor = ThreadPoolExecutor(max_workers=1)
+
 
 class TrainRequest(BaseModel):
     model_name: str
@@ -84,6 +87,111 @@ class TrainResponse(BaseModel):
     val_auc: float | None
     eta: float | None
     status: str
+
+
+class TrainStartResponse(BaseModel):
+    message: str
+    model_name: str
+    status: str
+
+
+class TrainStatusResponse(BaseModel):
+    model_id: int | None
+    model_name: str | None
+    status: str
+    progress: int
+    step: str
+    n_samples_human: int
+    n_samples_synthetic: int
+    val_accuracy: float | None = None
+    val_auc: float | None = None
+    error: str | None = None
+
+
+def serialize_training_status(model: TrainedModel | None) -> TrainStatusResponse:
+    if model is None:
+        return TrainStatusResponse(
+            model_id=None,
+            model_name=None,
+            status="idle",
+            progress=0,
+            step="Sin entrenamiento activo",
+            n_samples_human=0,
+            n_samples_synthetic=0,
+        )
+
+    report = json.loads(model.train_report or "{}")
+    default_step = (
+        "Entrenamiento completado"
+        if model.status == ModelStatus.DISPONIBLE
+        else "Procesando entrenamiento"
+    )
+    return TrainStatusResponse(
+        model_id=model.id,
+        model_name=model.name,
+        status=model.status.value,
+        progress=int(report.get("progress", 100 if model.status == ModelStatus.DISPONIBLE else 0)),
+        step=report.get("step", default_step),
+        n_samples_human=model.n_samples_human,
+        n_samples_synthetic=model.n_samples_synthetic,
+        val_accuracy=model.val_accuracy,
+        val_auc=model.val_auc,
+        error=report.get("error"),
+    )
+
+
+def update_training_progress(db: Session, model: TrainedModel, progress: int, step: str):
+    model.train_report = json.dumps({"progress": progress, "step": step})
+    db.commit()
+
+
+def training_was_cancelled(db: Session, model_id: int) -> bool:
+    status = db.query(TrainedModel.status).filter(TrainedModel.id == model_id).scalar()
+    return status == ModelStatus.ELIMINADO
+
+
+@router.get("/train/status", response_model=TrainStatusResponse)
+def training_status(db: Session = Depends(get_db)):
+    model = (
+        db.query(TrainedModel)
+        .filter(TrainedModel.status.in_([
+            ModelStatus.TRAINING,
+            ModelStatus.DISPONIBLE,
+            ModelStatus.ELIMINADO,
+        ]))
+        .order_by(TrainedModel.created_at.desc(), TrainedModel.id.desc())
+        .first()
+    )
+    return serialize_training_status(model)
+
+
+@router.post("/train/cancel", response_model=TrainStatusResponse)
+def cancel_training(db: Session = Depends(get_db)):
+    model = (
+        db.query(TrainedModel)
+        .filter(TrainedModel.status == ModelStatus.TRAINING)
+        .order_by(TrainedModel.created_at.desc(), TrainedModel.id.desc())
+        .first()
+    )
+    if model is None:
+        raise HTTPException(status_code=404, detail="No hay un entrenamiento activo.")
+
+    report = json.loads(model.train_report or "{}")
+    report["step"] = "Entrenamiento cancelado"
+    report["error"] = "Cancelado por el usuario."
+    model.train_report = json.dumps(report)
+    model.status = ModelStatus.ELIMINADO
+    db.commit()
+    db.refresh(model)
+    return serialize_training_status(model)
+
+
+def run_training_in_thread(payload: TrainRequest):
+    db = SessionLocal()
+    try:
+        train_model_job(payload, db)
+    finally:
+        db.close()
 
 
 def download_wav_from_minio(storage_key: str) -> bytes:
@@ -133,8 +241,35 @@ def extract_call_features(wav_bytes: bytes):
     return X_a, X_b
 
 
-@router.post("/train", response_model=TrainResponse)
-def train_model(
+@router.post("/train", response_model=TrainStartResponse, status_code=202)
+def start_training(
+    payload: TrainRequest,
+    db: Session = Depends(get_db),
+):
+    model_name = payload.model_name.strip()
+    if not model_name:
+        raise HTTPException(status_code=400, detail="El nombre del modelo es obligatorio.")
+
+    active_model = (
+        db.query(TrainedModel)
+        .filter(TrainedModel.status == ModelStatus.TRAINING)
+        .first()
+    )
+    if active_model:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Ya hay un entrenamiento activo: {active_model.name}.",
+        )
+
+    training_executor.submit(run_training_in_thread, TrainRequest(model_name=model_name))
+    return TrainStartResponse(
+        message=f"El entrenamiento de '{model_name}' comenzó en segundo plano.",
+        model_name=model_name,
+        status=ModelStatus.TRAINING.value,
+    )
+
+
+def train_model_job(
     payload: TrainRequest,
     db: Session = Depends(get_db),
 ):
@@ -185,6 +320,7 @@ def train_model(
         n_samples_synthetic=n_synthetic,
         train_method="full_retrain",
         status=ModelStatus.TRAINING,
+        train_report=json.dumps({"progress": 0, "step": "Preparando datos"}),
         created_at=datetime.utcnow(),
     )
     db.add(nuevo_modelo)
@@ -201,7 +337,12 @@ def train_model(
         per_call = {}
         labels = []
 
+        update_training_progress(db, nuevo_modelo, 5, "Descargando audios clasificados")
+
         for i, audio_record in enumerate(reviewed_audios):
+            if training_was_cancelled(db, nuevo_modelo.id):
+                return
+
             label = 1 if audio_record.is_synthetic else 0
             labels.append(label)
 
@@ -215,6 +356,12 @@ def train_model(
                 "label": label,
                 "title": audio_record.title,
             }
+            update_training_progress(
+                db,
+                nuevo_modelo,
+                5 + int(((i + 1) / len(reviewed_audios)) * 55),
+                f"Procesando audio {i + 1} de {len(reviewed_audios)}",
+            )
 
             print(
                 f"       → {X_a.shape[0]} segmentos acústicos, "
@@ -224,6 +371,9 @@ def train_model(
         # ==========================================================
         # 4. Split train/val
         # ==========================================================
+        if training_was_cancelled(db, nuevo_modelo.id):
+            return
+
         labels_arr = np.array(labels)
         n_calls = len(reviewed_audios)
 
@@ -245,6 +395,10 @@ def train_model(
         # ==========================================================
         # 5. Crear nuevo detector y ajustar densidades
         # ==========================================================
+        if training_was_cancelled(db, nuevo_modelo.id):
+            return
+
+        update_training_progress(db, nuevo_modelo, 65, "Ajustando detector")
         detector = VoiceAuthenticityDetector()
         detector.prior_h1 = 0.3
 
@@ -378,6 +532,10 @@ def train_model(
         # ==========================================================
         # 9. Serializar y subir a MinIO
         # ==========================================================
+        if training_was_cancelled(db, nuevo_modelo.id):
+            return
+
+        update_training_progress(db, nuevo_modelo, 90, "Guardando modelo entrenado")
         pkl_buffer = io.BytesIO()
         joblib.dump(detector, pkl_buffer, compress=3)
         pkl_buffer.seek(0)
@@ -391,6 +549,9 @@ def train_model(
             content_type="application/octet-stream",
         )
 
+        if training_was_cancelled(db, nuevo_modelo.id):
+            return
+
         print(f"   ☁️ Modelo subido a MinIO: {storage_key} ({file_size} bytes)")
 
         # ==========================================================
@@ -399,6 +560,8 @@ def train_model(
         nuevo_modelo.val_accuracy = val_accuracy
         nuevo_modelo.val_auc = val_auc
         nuevo_modelo.eta = detector.eta
+        train_report["progress"] = 100
+        train_report["step"] = "Entrenamiento completado"
         nuevo_modelo.train_report = json.dumps(train_report)
         nuevo_modelo.status = ModelStatus.DISPONIBLE
         db.commit()
@@ -421,9 +584,12 @@ def train_model(
         )
 
     except Exception as e:
+        if training_was_cancelled(db, nuevo_modelo.id):
+            return
+
         # Si falla, marcamos el modelo como eliminado
         nuevo_modelo.status = ModelStatus.ELIMINADO
-        nuevo_modelo.train_report = json.dumps({"error": str(e)})
+        nuevo_modelo.train_report = json.dumps({"progress": 0, "step": "Error", "error": str(e)})
         db.commit()
 
         print(f"   ❌ Error en reentrenamiento: {e}")

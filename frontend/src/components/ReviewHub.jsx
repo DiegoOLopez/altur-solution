@@ -72,7 +72,9 @@ export default function ReviewHub() {
   const [isTrainingOpen, setIsTrainingOpen] = useState(false);
   const [modelName, setModelName] = useState('');
   const [isTraining, setIsTraining] = useState(false);
+  const [isCancellingTraining, setIsCancellingTraining] = useState(false);
   const [trainingResult, setTrainingResult] = useState(null);
+  const [trainingStatus, setTrainingStatus] = useState({ status: 'idle', progress: 0, step: 'Sin entrenamiento activo' });
   const inputRef = useRef(null);
   const audioRef = useRef(null);
   useEffect(() => {
@@ -108,6 +110,30 @@ export default function ReviewHub() {
   }, [isTrainingOpen]);
 
   useEffect(() => () => audioRef.current?.pause(), []);
+
+  useEffect(() => {
+    let isMounted = true;
+    let intervalId;
+
+    const refreshTrainingStatus = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/review/train/status`);
+        if (!response.ok) return;
+        const status = await response.json();
+        if (!isMounted) return;
+        setTrainingStatus(status);
+      } catch {
+        // The review API error is already surfaced by the main data request.
+      }
+    };
+
+    refreshTrainingStatus();
+  intervalId = window.setInterval(refreshTrainingStatus, 2000);
+    return () => {
+      isMounted = false;
+      if (intervalId) window.clearInterval(intervalId);
+    };
+  }, []);
 
   const playAudio = async (note) => {
     if (playingId === note.id) {
@@ -184,7 +210,8 @@ export default function ReviewHub() {
         throw new Error(data.detail || 'Error durante el entrenamiento.');
       }
 
-      setTrainingResult(data);
+      setTrainingStatus({ status: 'training', progress: 0, step: 'Preparando datos', model_name: data.model_name });
+      closeTrainingModal();
     } catch (trainError) {
       setError(trainError.message);
       setTrainingResult(null);
@@ -199,13 +226,31 @@ export default function ReviewHub() {
     setTrainingResult(null);
   };
 
+  const cancelTraining = async () => {
+    if (isCancellingTraining) return;
+
+    setIsCancellingTraining(true);
+    try {
+      const response = await fetch(`${API_BASE}/review/train/cancel`, { method: 'POST' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'No se pudo cancelar el entrenamiento.');
+      setTrainingStatus(data);
+      setError('');
+    } catch (cancelError) {
+      setError(cancelError.message);
+    } finally {
+      setIsCancellingTraining(false);
+    }
+  };
+
   return <div className="review-hub">
-    <section className="review-intro"><div><p className="review-eyebrow"><span />Centro de revisión</p><h1>Haz que cada voz<br /><em>cuente.</em></h1><p className="review-intro-copy">Revisa tus notas de audio y ayuda a Vocalis a entender mejor las conversaciones de tu equipo.</p></div><button className="review-primary-button" onClick={() => setIsTrainingOpen(true)}><Sparkles size={18} />Entrenar de nuevo</button></section>
+    <section className="review-intro"><div><p className="review-eyebrow"><span />Centro de revisión</p><h1>Haz que cada voz<br /><em>cuente.</em></h1><p className="review-intro-copy">Revisa tus notas de audio y ayuda a Vocalis a entender mejor las conversaciones de tu equipo.</p></div><button className="review-primary-button" onClick={() => setIsTrainingOpen(true)} disabled={trainingStatus.status === 'training' || isTraining} title={trainingStatus.status === 'training' ? 'Ya hay un entrenamiento en curso' : undefined}><Sparkles size={18} />{trainingStatus.status === 'training' ? 'Entrenamiento en curso' : 'Entrenar de nuevo'}</button></section>
     <div className="review-bento-grid">
       <section className="review-metrics" aria-label="Resumen de notas"><MetricCard label="Total de grabaciones" value={stats.total} detail="Disponibles para entrenar" tone="green" /><MetricCard label="Muestras clasificadas" value={stats.reviewed} detail="Listas para el modelo" tone="blue" /><MetricCard label="Pendientes de revisión" value={notes.length} detail="Necesitan tu atención" tone="orange" /></section>
-      <section className="review-model-card"><div className="review-model-header"><div><p className="review-card-kicker">Datos para entrenamiento</p><h2>Vocalis / base-01</h2></div><span className="review-model-state">{stats.pending} pendientes</span></div><div className="review-model-log"><p><time>PENDIENTES</time><span>{stats.pending} grabaciones esperan revisión</span></p><p><time>CLASIFICADAS</time><span>{stats.reviewed} muestras listas para entrenar</span></p><p><time>TOTAL</time><span>{stats.total} grabaciones disponibles</span></p></div></section>
+      <section className="review-model-card"><div className="review-model-header"><div><p className="review-card-kicker">Datos para entrenamiento</p><h2>{trainingStatus.model_name || 'Vocalis / base-01'}</h2></div><span className="review-model-state">{trainingStatus.status === 'training' ? `${trainingStatus.progress}% en curso` : `${stats.pending} pendientes`}</span></div><div className="review-model-log"><p><time>PENDIENTES</time><span>{stats.pending} grabaciones esperan revisión</span></p><p><time>CLASIFICADAS</time><span>{stats.reviewed} muestras listas para entrenar</span></p><p><time>TOTAL</time><span>{stats.total} grabaciones disponibles</span></p></div></section>
       <section className="review-list-section"><button className="review-section-heading" onClick={() => setIsExpanded((current) => !current)} aria-expanded={isExpanded}><span><span className="review-section-icon"><Headphones size={18} /></span><span><strong>Revisar notas</strong><small>{isLoading ? 'Cargando notas...' : `${notes.length} notas esperan tu revisión`}</small></span></span><ChevronDown className={isExpanded ? 'rotate' : ''} size={21} /></button>{isExpanded && <div className="review-notes-list">{error && <p className="review-error-message">{error}</p>}{isLoading ? <div className="review-empty-state"><span>Cargando notas...</span></div> : notes.length ? notes.map((note) => <NoteRow key={note.id} note={note} playing={playingId === note.id} selectedClassification={selections[note.id]} onPlay={() => playAudio(note)} onSelect={(classification) => setSelections((current) => ({ ...current, [note.id]: classification }))} onConfirm={() => confirmClassification(note.id)} isSaving={savingId === note.id} />) : <div className="review-empty-state"><Check size={20} /><strong>Todo revisado</strong><span>Ya clasificaste todas las notas de esta sesión.</span></div>}</div>}</section>
     </div>
+    {trainingStatus.status === 'training' && <aside className="review-training-tooltip" role="status" aria-live="polite"><div className="review-training-tooltip-header"><Sparkles size={16} /><strong>Entrenamiento en segundo plano</strong><span>{trainingStatus.progress}%</span></div><div className="review-training-progress"><i style={{ width: `${trainingStatus.progress}%` }} /></div><p>{trainingStatus.step}</p><small>No puedes iniciar otro entrenamiento hasta que este termine.</small><button className="review-training-cancel" onClick={cancelTraining} disabled={isCancellingTraining}>{isCancellingTraining ? 'Cancelando...' : 'Cancelar entrenamiento'}</button></aside>}
     {isTrainingOpen && <div className="review-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeTrainingModal(); }}><section className="review-training-modal" role="dialog" aria-modal="true" aria-labelledby="review-training-title"><button className="review-close-button" onClick={closeTrainingModal} aria-label="Cerrar"><X size={18} /></button><div className="review-modal-symbol"><Sparkles size={22} /></div><p className="review-eyebrow">NUEVA VERSIÓN</p><h2 id="review-training-title">Entrenar modelo</h2>
       {trainingResult ? (
         <div className="review-training-success">
