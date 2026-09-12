@@ -1,10 +1,21 @@
-from fastapi import APIRouter, File, HTTPException, UploadFile
+import base64
+import binascii
+
+from fastapi import APIRouter, HTTPException, Request, UploadFile
+from pydantic import BaseModel
 
 from ...services.detector import AudioDetector
 from ...schemas.detection import DetectionResponse
 
 
 router = APIRouter()
+
+
+class DetectionJsonRequest(BaseModel):
+    call_id: str
+    audio_base64: str
+    sample_rate: int
+    channels: int
 
 
 # ============================================================
@@ -23,7 +34,7 @@ detector = AudioDetector()
     response_model=DetectionResponse,
 )
 async def detect_audio(
-    file: UploadFile = File(...),
+    request: Request,
 ):
     """
     Detecta si una llamada contiene una voz sintética.
@@ -33,29 +44,48 @@ async def detect_audio(
     como el comportamiento conversacional entre caller y agente.
     """
 
-    # --------------------------------------------------------
-    # Validar extensión
-    # --------------------------------------------------------
+    content_type = request.headers.get("content-type", "").lower()
+    file = None
+    payload = None
 
-    if not file.filename:
+    if content_type.startswith("application/json"):
+        try:
+            payload = DetectionJsonRequest.model_validate(await request.json())
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail="Invalid JSON payload.") from exc
+    elif content_type.startswith("multipart/form-data"):
+        form = await request.form()
+        file = form.get("file")
+        if not isinstance(file, UploadFile):
+            raise HTTPException(status_code=400, detail="A multipart WAV file is required.")
+
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="No filename provided.")
+
+        if not file.filename.lower().endswith(".wav"):
+            raise HTTPException(status_code=400, detail="Only WAV files are supported.")
+
+        audio_bytes = await file.read()
+    else:
         raise HTTPException(
-            status_code=400,
-            detail="No filename provided.",
+            status_code=415,
+            detail="Content-Type must be application/json or multipart/form-data.",
         )
 
-    if not file.filename.lower().endswith(".wav"):
-        raise HTTPException(
-            status_code=400,
-            detail="Only WAV files are supported.",
-        )
+    if payload is not None:
+        if payload.sample_rate != 8000 or payload.channels != 2:
+            raise HTTPException(
+                status_code=400,
+                detail="Expected stereo audio at 8000 Hz.",
+            )
 
-
-    # --------------------------------------------------------
-    # Leer archivo
-    # --------------------------------------------------------
-
-    audio_bytes = await file.read()
-
+        try:
+            audio_bytes = base64.b64decode(payload.audio_base64, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise HTTPException(
+                status_code=400,
+                detail="audio_base64 is not valid Base64.",
+            ) from exc
     if not audio_bytes:
         raise HTTPException(
             status_code=400,

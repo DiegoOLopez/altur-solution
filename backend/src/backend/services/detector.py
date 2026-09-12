@@ -24,7 +24,7 @@ if str(DETECTOR_ROOT) not in sys.path:
 MODEL_PATH = (
     Path(__file__).resolve().parent.parent
     / "ai_models"
-    / "model.pkl"
+    / "model_1_2.pkl"
 )
 
 
