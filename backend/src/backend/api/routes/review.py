@@ -92,22 +92,42 @@ def get_audio_or_404(audio_id: int, db: Session) -> Audio:
     return audio
 
 
+from fastapi.responses import StreamingResponse
+from minio import Minio
+
+# Configuración del Cliente MinIO (Igual que en websocket.py)
+minio_client = Minio(
+    "localhost:9000",
+    access_key="admin",
+    secret_key="supersecretpassword",
+    secure=False
+)
+BUCKET_NAME = "grabaciones"
+
 @router.get("/audios/{audio_id}/stream")
 def stream_audio(audio_id: int, db: Session = Depends(get_db)):
     audio = get_audio_or_404(audio_id, db)
-    storage_root = Path(settings.audio_storage_root).resolve()
-    audio_path = (storage_root / audio.storage_key).resolve()
-
-    if storage_root not in audio_path.parents:
-        raise HTTPException(status_code=400, detail="Invalid audio storage key.")
-    if not audio_path.is_file():
-        raise HTTPException(status_code=404, detail="Audio file not found.")
-
-    return FileResponse(
-        audio_path,
-        media_type="audio/wav",
-        filename=audio_path.name,
-    )
+    
+    try:
+        # Obtenemos el objeto (audio) desde MinIO usando el storage_key
+        response = minio_client.get_object(BUCKET_NAME, audio.storage_key)
+        
+        # Función generadora para leer en chunks y hacer streaming eficiente
+        def iterfile():
+            try:
+                for chunk in response.stream(32 * 1024):
+                    yield chunk
+            finally:
+                response.close()
+                response.release_conn()
+                
+        return StreamingResponse(
+            iterfile(), 
+            media_type="audio/wav"
+        )
+    except Exception as e:
+        print(f"Error al leer de MinIO: {e}")
+        raise HTTPException(status_code=404, detail="Audio file not found in storage.")
 
 
 @router.patch(

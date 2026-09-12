@@ -1,1 +1,2 @@
-from .audio import Audio, AudioStatus, ModelStatus
+from .audio import Audio, AudioStatus
+from .trained_model import TrainedModel, ModelStatus

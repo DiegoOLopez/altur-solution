@@ -10,7 +10,8 @@ from alembic import context
 
 # IMPORTANTE: Importar tus modelos aquí
 from src.backend.core.database import Base
-from src.backend.models.audio import Audio
+from src.backend.models.audio import Audio  # noqa: F401
+from src.backend.models.trained_model import TrainedModel  # noqa: F401
 # Reemplaza la línea target_metadata = None por esta:
 target_metadata = Base.metadata
 

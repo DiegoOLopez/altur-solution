@@ -2,27 +2,26 @@ import enum
 from datetime import datetime
 
 from sqlalchemy import (
-    Boolean,
     Column,
     DateTime,
     Enum as SQLEnum,
     Float,
     Integer,
     String,
+    Text,
 )
 
 from backend.core.database import Base
 
 
-class AudioStatus(str, enum.Enum):
-    REVISADO = "revisado"
-    NO_REVISADO = "no_revisado"
-    DELETED = "deleted"
+class ModelStatus(str, enum.Enum):
+    ELIMINADO = "eliminado"
+    DISPONIBLE = "disponible"
+    TRAINING = "training"
 
 
-
-class Audio(Base):
-    __tablename__ = "audios"
+class TrainedModel(Base):
+    __tablename__ = "trained_models"
 
     id = Column(
         Integer,
@@ -36,7 +35,7 @@ class Audio(Base):
         unique=True,
     )
 
-    title = Column(
+    name = Column(
         String(255),
         nullable=False,
     )
@@ -46,46 +45,51 @@ class Audio(Base):
         nullable=False,
     )
 
-    duration = Column(
-        Float,
-        nullable=False,
-    )
-
-    sample_rate = Column(
+    # Métricas del entrenamiento
+    n_samples_human = Column(
         Integer,
         nullable=False,
+        default=0,
     )
 
-    channels = Column(
+    n_samples_synthetic = Column(
         Integer,
         nullable=False,
+        default=0,
     )
 
-    is_synthetic = Column(
-        Boolean,
-        nullable=False,
-        default=False,
-    )
-
-    split = Column(
-        String(20),
-        nullable=False,
-    )
-
-    confidence = Column(
+    val_accuracy = Column(
         Float,
         nullable=True,
     )
 
-    score_total = Column(
+    val_auc = Column(
         Float,
+        nullable=True,
+    )
+
+    eta = Column(
+        Float,
+        nullable=True,
+    )
+
+    # Método usado: 'online_update' o 'full_retrain'
+    train_method = Column(
+        String(50),
+        nullable=False,
+        default="online_update",
+    )
+
+    # Reporte completo del entrenamiento (JSON serializado)
+    train_report = Column(
+        Text,
         nullable=True,
     )
 
     status = Column(
-        SQLEnum(AudioStatus),
+        SQLEnum(ModelStatus),
         nullable=False,
-        default=AudioStatus.NO_REVISADO,
+        default=ModelStatus.TRAINING,
     )
 
     created_at = Column(

@@ -508,6 +508,36 @@ body {
   border-top: 1px solid #31564a;
 }
 
+.review-training-success {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+.review-training-success p {
+  color: var(--altur-black);
+}
+.review-training-metrics {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.review-training-metrics li {
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--altur-gray-50);
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+.review-training-metrics li:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
 .review-model-log p {
   display: flex;
   gap: 12px;
@@ -718,6 +748,32 @@ body {
 @media (max-width: 600px) {
   .review-note-row { grid-template-columns: minmax(0, 1fr) auto; }
   .review-note-player { grid-column: 1 / 2; }
+}
+
+.review-note-actions button.is-selected {
+  color: #ffffff;
+  background: var(--review-black);
+}
+.review-note-actions .confirm-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 12px;
+  color: #ffffff;
+  background: var(--review-black);
+  font-weight: 700;
+}
+.review-note-actions .confirm-action:hover { color: #ffffff; background: #333333; }
+.review-note-actions .confirm-action:disabled { cursor: wait; opacity: .6; }
+
+@media (max-width: 600px) {
+  .review-note-actions .confirm-action {
+    width: auto;
+    min-height: 29px;
+    padding: 0 9px;
+    font-size: 9px;
+  }
+  .review-note-actions .confirm-action svg { display: none; }
 }
 
 /* Streaming simulator layout fallback for environments without Tailwind utilities */
