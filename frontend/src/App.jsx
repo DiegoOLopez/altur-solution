@@ -197,7 +197,7 @@ La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosó
       }}>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
+          gridTemplateColumns: activeMode === 'streaming' ? '1fr' : 'repeat(auto-fit, minmax(380px, 1fr))',
           gap: '24px',
           alignItems: 'start'
         }}>
@@ -221,8 +221,8 @@ La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosó
             )}
           </div>
 
-          {/* Column 2: Visualizer & Results */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Column 2: Visualizer & Results, used by Audio Forensics only */}
+          {activeMode === 'batch' && <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* CALLER AUDIO: Conversation Sound Wave */}
             <StereoWaveform
               channel0={activeAudio?.channel0}
@@ -258,7 +258,7 @@ La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosó
               isAnalyzing={isAnalyzing}
               activeMode={activeMode}
             />
-          </div>
+          </div>}
         </div>
 
         {/* Recent Calls History */}

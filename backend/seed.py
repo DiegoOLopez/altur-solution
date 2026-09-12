@@ -25,15 +25,15 @@ def seed_audios():
                     channels=1,
                     is_synthetic=is_synthetic,
                     split=row["split"],
-                    # Sobrescribimos el default del modelo aquí:
-                    status=AudioStatus.REVISADO 
+                    # Los audios recién cargados deben esperar revisión:
+                    status=AudioStatus.NO_REVISADO
                 )
                 nuevos_audios.append(nuevo_audio)
             
             db.add_all(nuevos_audios)
             db.commit()
             
-            print(f"✅ ¡Éxito! Se insertaron {len(nuevos_audios)} audios con estado 'REVISADO'.")
+            print(f"✅ ¡Éxito! Se insertaron {len(nuevos_audios)} audios con estado 'NO_REVISADO'.")
             
     except Exception as e:
         db.rollback()

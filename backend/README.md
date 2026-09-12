@@ -108,6 +108,28 @@ Respuesta de ejemplo:
 }
 ```
 
+### Revisión de audios
+
+La revisión usa el modelo `Audio` y persiste los cambios en MySQL:
+
+```http
+GET /review/audios
+GET /review/audios/{id}/stream
+PATCH /review/audios/{id}/classification
+DELETE /review/audios/{id}
+GET /review/db/health
+```
+
+Para clasificar un audio, envía uno de estos valores:
+
+```json
+{
+	"classification": "synthetic"
+}
+```
+
+La clasificación `real` o `synthetic` marca el audio como revisado. `DELETE` hace un borrado lógico con estado `deleted`, por lo que no elimina el archivo físico. La reproducción busca cada `storage_key` dentro de `AUDIO_STORAGE_ROOT`; su valor predeterminado es `audio` y puede cambiarse mediante variable de entorno.
+
 ### Streaming por WebSocket
 
 ```text

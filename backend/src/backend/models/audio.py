@@ -11,7 +11,7 @@ from sqlalchemy import (
     String,
 )
 
-from src.backend.core.database import Base
+from backend.core.database import Base
 
 
 class AudioStatus(str, enum.Enum):
