@@ -32,7 +32,7 @@ export default function Navbar({ activeMode, setActiveMode }) {
             onClick={() => setActiveMode('batch')}
           >
             <FileAudio size={16} />
-            <span>Audio Forensics</span>
+            <span>Análisis Forense</span>
             <span className="font-mono" style={{ fontSize: '0.7rem', opacity: 0.65 }}>/detect</span>
           </button>
 
@@ -52,14 +52,6 @@ export default function Navbar({ activeMode, setActiveMode }) {
             <span>Live Call</span>
             <span className="font-mono" style={{ fontSize: '0.7rem', opacity: 0.65 }}>/detect_streaming</span>
           </button>
-        </div>
-
-        {/* Status Pill */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div className="altur-badge badge-emerald" style={{ padding: '6px 14px' }}>
-            <span className="dot-pulse green"></span>
-            <span>Sistema Altur Operativo</span>
-          </div>
         </div>
       </div>
     </header>

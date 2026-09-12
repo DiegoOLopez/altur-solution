@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useEffect } from 'react';
-import { Waves, Activity } from 'lucide-react';
+import { Activity } from 'lucide-react';
 import { computeSpectrogram } from '../utils/audioUtils';
 
 // Colormap stops tied to the Altur palette (light -> cyan -> violet -> rose)
@@ -102,16 +102,14 @@ export default function Spectrogram({ channelData, sampleRate = 8000, duration, 
   }, [spec]);
 
   return (
-    <div className="avant-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+    <div className="avant-card fx-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Waves size={18} color="#0284c7" />
-          <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--altur-black)' }}>
-            Espectrograma del Llamante
-          </h3>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+        <div>
+          <span className="fx-kicker">Audio del llamante · Tiempo-frecuencia</span>
+          <h3 className="fx-card-title">Espectrograma del Llamante</h3>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <span className="altur-badge badge-cyan font-mono">
             STFT 32ms
           </span>

@@ -90,14 +90,6 @@ export default function ChameleonLogo({ size = 38, showWordmark = true, classNam
               ALTUR
             </span>
           </div>
-          <span style={{
-            fontSize: '0.74rem',
-            color: '#64748b',
-            fontWeight: '600',
-            letterSpacing: '-0.01em'
-          }}>
-            Defensa Biométrica de Voz en Telefonía Bancaria
-          </span>
         </div>
       )}
     </div>

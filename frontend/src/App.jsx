@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useRef, useState } from 'react';
 import Navbar from './components/Navbar';
 import BatchInput from './components/BatchInput';
 import StreamingCallSimulator from './components/StreamingCallSimulator';
@@ -23,7 +23,10 @@ export default function App() {
   const [verdictFor, setVerdictFor] = useState(null);
   const [history, setHistory] = useState([]);
 
-  // Handler for audio selection in Batch Mode
+  // Título de la última llamada en vivo (para armar el registro del historial).
+  const currentTitleRef = useRef('');
+
+  // Selección de audio en modo batch (POST /detect).
   const handleAudioReady = (audioData) => {
     setActiveAudio(audioData);
 
@@ -33,7 +36,7 @@ export default function App() {
     setVerdictFor(null);
   };
 
-  // Handler for Batch Analysis (POST /detect)
+  // Análisis batch: llama a POST /detect con el WAV seleccionado.
   const handleRunBatchAnalysis = async () => {
     if (!activeAudio) return;
 
@@ -108,7 +111,7 @@ export default function App() {
     }
   };
 
-  // Handler for live streaming updates (POST /detect_streaming)
+  // Actualización en vivo del modo streaming (POST /detect_streaming).
   // Se conserva el flujo existente de streaming.
   const handleStreamingUpdate = async (streamData) => {
     if (analysisResult) {
@@ -127,7 +130,7 @@ export default function App() {
     }
   };
 
-  // Handler when streaming call ends
+  // Fin de la llamada streaming: se construye el resultado final.
   const handleCallFinished = (summary) => {
     const finalResult = {
       is_synthetic: summary.isSynthetic,
@@ -144,9 +147,9 @@ export default function App() {
         semantic_hallucination: summary.isSynthetic
       },
       llm_conclusion: summary.isSynthetic
-        ? `🚨 ALERTA DEEPFAKE EN LLAMADA STREAMING (POST /detect_streaming):
+        ? `ALERTA DEEPFAKE EN LLAMADA STREAMING (POST /detect_streaming):
 Durante la llamada de ${summary.duration} segundos, se detectó una frecuencia neural plana a 3.8 kHz y latencias invariables de 180ms al responder a las interrupciones del agente. Se recomienda abortar la operación bancaria.`
-        : `✅ LLAMADA STREAMING AUTÉNTICA (POST /detect_streaming):
+        : `LLAMADA STREAMING AUTÉNTICA (POST /detect_streaming):
 La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosódica natural, respiraciones audibles y fluidez orgánica. Canal telefónico 100% verificado.`
     };
 
@@ -161,9 +164,7 @@ La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosó
     addHistoryItem(finalResult, title);
   };
 
-  // Latest live-call title
-  const currentTitleRef = React.useRef('');
-
+  // Resultado de la grabación en vivo: título y audio capturados.
   const handleRecordingResult = (recording) => {
     currentTitleRef.current = recording.title;
     setActiveAudio(recording);
@@ -208,34 +209,35 @@ La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosó
       {activeMode === 'review' ? (
         <ReviewHub />
       ) : (
-        <>
-          {/* Main Responsive Grid */}
-          <main
-            style={{
-              maxWidth: '1400px',
-              margin: '0 auto',
-              padding: '28px 24px',
-              width: '100%',
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '24px'
-            }}
-          >
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns:
-                  activeMode === 'streaming'
-                    ? '1fr'
-                    : 'repeat(auto-fit, minmax(380px, 1fr))',
-                gap: '24px',
-                alignItems: 'start'
-              }}
-            >
-              {/* Column 1: Mode Specific Input Hub */}
-              <div>
-                {activeMode === 'batch' ? (
+        <main
+          style={{
+            maxWidth: '1400px',
+            margin: '0 auto',
+            padding: '28px 28px 44px',
+            width: '100%',
+            flex: 1
+          }}
+        >
+          {activeMode === 'batch' ? (
+            <div className="forensic-shell">
+              {/* Section header */}
+              <header className="fx-intro">
+                <div>
+                  <span className="fx-kicker">Módulo de auditoría forense</span>
+                  <h1>Análisis Forense de Audio</h1>
+                  <p>
+                    Verifica si la voz del llamante es humana o sintética utilizando
+                    la evidencia acústica y comportamental que devuelve el modelo.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <span className="altur-badge badge-cyan font-mono">POST /detect</span>
+                </div>
+              </header>
+
+              {/* Bento dashboard */}
+              <div className="fx-bento">
+                <div className="fx-cell-input">
                   <BatchInput
                     onAudioReady={handleAudioReady}
                     onRunBatchAnalysis={handleRunBatchAnalysis}
@@ -243,26 +245,17 @@ La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosó
                     currentAudioTitle={activeAudio?.title}
                     verdictTitle={verdictFor}
                   />
-                ) : (
-                  <StreamingCallSimulator
-                    onStreamingUpdate={handleStreamingUpdate}
-                    onCallFinished={handleCallFinished}
-                    onRecordingResult={handleRecordingResult}
-                    apiBaseUrl={API_BASE}
-                  />
-                )}
-              </div>
+                </div>
 
-              {/* Column 2: Visualizer & Results */}
-              {activeMode === 'batch' && (
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '20px'
-                  }}
-                >
-                  {/* CALLER AUDIO: Conversation Sound Wave */}
+                <div className="fx-cell-verdict">
+                  <VerdictPanel
+                    result={analysisResult}
+                    isAnalyzing={isAnalyzing}
+                    activeMode={activeMode}
+                  />
+                </div>
+
+                <div className="fx-cell-wave">
                   <StereoWaveform
                     channel0={activeAudio?.channel0}
                     channel1={activeAudio?.channel1}
@@ -270,15 +263,9 @@ La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosó
                     isSynthetic={analysisResult?.is_synthetic}
                     isAnalyzing={isAnalyzing}
                   />
+                </div>
 
-                  {/* CALLER AUDIO: Frequency-domain view */}
-                  <Spectrogram
-                    channelData={activeAudio?.channel0}
-                    duration={activeAudio?.duration}
-                    isAnalyzing={isAnalyzing}
-                  />
-
-                  {/* DETECTION RESULT: real model evidence */}
+                <div className="fx-cell-signals">
                   <DetectionSignals
                     isSynthetic={analysisResult?.is_synthetic}
                     confidence={analysisResult?.confidence}
@@ -288,37 +275,57 @@ La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosó
                     acousticSegments={analysisResult?.n_acoustic_segments}
                     behavioralEvents={analysisResult?.n_behavioral_events}
                   />
+                </div>
 
-                  {/* CONVERSATION ANALYSIS: real behavioral evidence */}
+                <div className="fx-cell-spec">
+                  <Spectrogram
+                    channelData={activeAudio?.channel0}
+                    duration={activeAudio?.duration}
+                    isAnalyzing={isAnalyzing}
+                  />
+                </div>
+
+                <div className="fx-cell-timing">
                   <ResponseTiming
                     isSynthetic={analysisResult?.is_synthetic}
                     behavioralLLR={analysisResult?.llr_behavioral_cum}
                     behavioralEvents={analysisResult?.n_behavioral_events}
                     scoreTotal={analysisResult?.score_total}
                   />
-
-                  {/* Verdict based on real detector result */}
-                  <VerdictPanel
-                    result={analysisResult}
-                    isAnalyzing={isAnalyzing}
-                    activeMode={activeMode}
-                  />
                 </div>
-              )}
-            </div>
+              </div>
 
-            {/* Recent Calls History */}
-            <CallHistory
-              history={history}
-              onSelectHistoryItem={(item) => {
-                if (item.resultData) {
-                  setAnalysisResult(item.resultData);
-                  setVerdictFor(item.title);
-                }
-              }}
-            />
-          </main>
-        </>
+              {/* Registro de auditorías */}
+              <CallHistory
+                history={history}
+                onSelectHistoryItem={(item) => {
+                  if (item.resultData) {
+                    setAnalysisResult(item.resultData);
+                    setVerdictFor(item.title);
+                  }
+                }}
+              />
+            </div>
+          ) : (
+            <>
+              <StreamingCallSimulator
+                onStreamingUpdate={handleStreamingUpdate}
+                onCallFinished={handleCallFinished}
+                onRecordingResult={handleRecordingResult}
+                apiBaseUrl={API_BASE}
+              />
+              <CallHistory
+                history={history}
+                onSelectHistoryItem={(item) => {
+                  if (item.resultData) {
+                    setAnalysisResult(item.resultData);
+                    setVerdictFor(item.title);
+                  }
+                }}
+              />
+            </>
+          )}
+        </main>
       )}
 
       {/* Footer */}

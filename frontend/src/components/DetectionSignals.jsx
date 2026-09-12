@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Activity,
   Waves,
   MessageSquare,
   Layers,
@@ -27,12 +26,12 @@ export default function DetectionSignals({
 
   return (
     <div
-      className="avant-card"
+      className="avant-card fx-card"
       style={{
-        padding: '24px',
+        padding: '20px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '16px'
+        gap: '14px'
       }}
     >
 
@@ -40,35 +39,16 @@ export default function DetectionSignals({
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: '8px'
+          gap: '10px'
         }}
       >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}
-        >
-          <Activity
-            size={18}
-            color="#6366f1"
-          />
-
-          <h3
-            style={{
-              fontSize: '1.05rem',
-              fontWeight: 800,
-              color: 'var(--altur-black)'
-            }}
-          >
-            Señales del Modelo
-          </h3>
+        <div>
+          <span className="fx-kicker">Evidencia del modelo</span>
+          <h3 className="fx-card-title">Señales del Modelo</h3>
         </div>
-
 
         <span
           className={`altur-badge ${synthetic
