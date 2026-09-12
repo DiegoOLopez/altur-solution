@@ -12,14 +12,18 @@ dependencies = [
     "fastapi>=0.141.1",
     "joblib>=1.6.0",
     "librosa>=1.0.0",
+    "minio>=7.2.20",
     "pydantic-settings>=2.15.0",
     "pymysql>=1.2.0",
     "python-multipart>=0.0.32",
     "scikit-learn>=1.9.1",
     "scipy>=1.18.1",
+    "silero-vad>=6.2.1",
     "soundfile>=0.14.0",
     "soxr>=1.1.0",
+    "speechbrain>=1.1.1",
     "sqlalchemy>=2.0.52",
+    "torch>=2.14.0",
     "uvicorn[standard]>=0.52.4",
 ]
 

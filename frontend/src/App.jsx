@@ -11,16 +11,17 @@ import CallHistory from './components/CallHistory';
 import ReviewHub from './components/ReviewHub';
 import { callDetectApi } from './utils/audioUtils';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'http://localhost:8000';
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') ||
+  'http://localhost:8000';
 
 export default function App() {
-  const [activeMode, setActiveMode] = useState('batch'); // 'batch' (/detect) | 'streaming' (/detect_streaming)
+  const [activeMode, setActiveMode] = useState('batch');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [activeAudio, setActiveAudio] = useState(null);
   const [analysisResult, setAnalysisResult] = useState(null);
-  const [verdictFor, setVerdictFor] = useState(null); // title de activeAudio al que pertenece analysisResult
+  const [verdictFor, setVerdictFor] = useState(null);
   const [history, setHistory] = useState([]);
-
 
   // Handler for audio selection in Batch Mode
   const handleAudioReady = (audioData) => {
@@ -41,10 +42,7 @@ export default function App() {
     const startTime = performance.now();
 
     try {
-      // --------------------------------------------------------
       // Enviar el WAV al backend
-      // --------------------------------------------------------
-
       const data = await callDetectApi(
         API_BASE,
         activeAudio.base64
@@ -54,11 +52,7 @@ export default function App() {
         performance.now() - startTime
       );
 
-
-      // --------------------------------------------------------
       // Resultado REAL del modelo
-      // --------------------------------------------------------
-
       const res = {
         is_synthetic: data.is_synthetic,
         confidence: data.confidence,
@@ -87,11 +81,6 @@ export default function App() {
           : `El detector clasificó la llamada como voz humana con una confianza de ${(data.confidence * 100).toFixed(1)}%. El resultado se obtiene a partir de la evidencia acústica y comportamental acumulada por el modelo.`
       };
 
-
-      // --------------------------------------------------------
-      // Actualizar UI
-      // --------------------------------------------------------
-
       setAnalysisResult(res);
       setVerdictFor(activeAudio.title);
 
@@ -99,20 +88,13 @@ export default function App() {
         res,
         activeAudio.title
       );
-
     } catch (err) {
-
       console.error(
         'Error calling POST /detect:',
         err
       );
 
-
-      // --------------------------------------------------------
-      // IMPORTANTE:
       // No utilizar mock si falla el backend.
-      // --------------------------------------------------------
-
       setAnalysisResult({
         error: true,
         errorMessage:
@@ -121,17 +103,14 @@ export default function App() {
       });
 
       setVerdictFor(activeAudio.title);
-
     } finally {
-
       setIsAnalyzing(false);
-
     }
   };
 
   // Handler for live streaming updates (POST /detect_streaming)
+  // Se conserva el flujo existente de streaming.
   const handleStreamingUpdate = async (streamData) => {
-    // Dynamically update confidence while calling
     if (analysisResult) {
       setAnalysisResult((prev) => ({
         ...prev,
@@ -139,7 +118,9 @@ export default function App() {
         confidence: streamData.currentRisk / 100,
         metrics: {
           ...prev.metrics,
-          acoustic_score: streamData.isSynthetic ? Math.min(95, 50 + streamData.elapsed * 8) : Math.max(5, 30 - streamData.elapsed * 4),
+          acoustic_score: streamData.isSynthetic
+            ? Math.min(95, 50 + streamData.elapsed * 8)
+            : Math.max(5, 30 - streamData.elapsed * 4),
           turn_recovery_ms: streamData.isSynthetic ? 180 : 420
         }
       }));
@@ -170,13 +151,19 @@ La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosó
     };
 
     setAnalysisResult(finalResult);
-    const title = summary.title || currentTitleRef.current || `Llamada en Vivo (${summary.duration}s)`;
+
+    const title =
+      summary.title ||
+      currentTitleRef.current ||
+      `Llamada en Vivo (${summary.duration}s)`;
+
     setVerdictFor(title);
     addHistoryItem(finalResult, title);
   };
 
-  // Latest live-call title (kept in a ref so the finish handler always sees the freshest value)
+  // Latest live-call title
   const currentTitleRef = React.useRef('');
+
   const handleRecordingResult = (recording) => {
     currentTitleRef.current = recording.title;
     setActiveAudio(recording);
@@ -185,7 +172,12 @@ La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosó
 
   const addHistoryItem = (res, title) => {
     const now = new Date();
-    const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+
+    const timeStr =
+      `${now.getHours().toString().padStart(2, '0')}:` +
+      `${now.getMinutes().toString().padStart(2, '0')}:` +
+      `${now.getSeconds().toString().padStart(2, '0')}`;
+
     setHistory((prev) => [
       {
         title: title || 'Llamada telefónica',
@@ -201,116 +193,154 @@ La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosó
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Navbar with Chameleon Brand & Mode Switcher */}
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column'
+      }}
+    >
       <Navbar
         activeMode={activeMode}
         setActiveMode={setActiveMode}
       />
 
-      {activeMode === 'review' ? <ReviewHub /> : <>
-        {/* Main Responsive Grid */}
-        <main style={{
-          maxWidth: '1400px',
-          margin: '0 auto',
-          padding: '28px 24px',
-          width: '100%',
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '24px'
-        }}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
-            gap: '24px',
-            alignItems: 'start'
-          }}>
-            {/* Column 1: Mode Specific Input Hub */}
-            <div>
-              {activeMode === 'batch' ? (
-                <BatchInput
-                  onAudioReady={handleAudioReady}
-                  onRunBatchAnalysis={handleRunBatchAnalysis}
-                  isAnalyzing={isAnalyzing}
-                  currentAudioTitle={activeAudio?.title}
-                  verdictTitle={verdictFor}
-                />
-              ) : (
-                <StreamingCallSimulator
-                  onStreamingUpdate={handleStreamingUpdate}
-                  onCallFinished={handleCallFinished}
-                  onRecordingResult={handleRecordingResult}
-                  apiBaseUrl={API_BASE}
-                />
+      {activeMode === 'review' ? (
+        <ReviewHub />
+      ) : (
+        <>
+          {/* Main Responsive Grid */}
+          <main
+            style={{
+              maxWidth: '1400px',
+              margin: '0 auto',
+              padding: '28px 24px',
+              width: '100%',
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '24px'
+            }}
+          >
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns:
+                  activeMode === 'streaming'
+                    ? '1fr'
+                    : 'repeat(auto-fit, minmax(380px, 1fr))',
+                gap: '24px',
+                alignItems: 'start'
+              }}
+            >
+              {/* Column 1: Mode Specific Input Hub */}
+              <div>
+                {activeMode === 'batch' ? (
+                  <BatchInput
+                    onAudioReady={handleAudioReady}
+                    onRunBatchAnalysis={handleRunBatchAnalysis}
+                    isAnalyzing={isAnalyzing}
+                    currentAudioTitle={activeAudio?.title}
+                    verdictTitle={verdictFor}
+                  />
+                ) : (
+                  <StreamingCallSimulator
+                    onStreamingUpdate={handleStreamingUpdate}
+                    onCallFinished={handleCallFinished}
+                    onRecordingResult={handleRecordingResult}
+                    apiBaseUrl={API_BASE}
+                  />
+                )}
+              </div>
+
+              {/* Column 2: Visualizer & Results */}
+              {activeMode === 'batch' && (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '20px'
+                  }}
+                >
+                  {/* CALLER AUDIO: Conversation Sound Wave */}
+                  <StereoWaveform
+                    channel0={activeAudio?.channel0}
+                    channel1={activeAudio?.channel1}
+                    duration={activeAudio?.duration}
+                    isSynthetic={analysisResult?.is_synthetic}
+                    isAnalyzing={isAnalyzing}
+                  />
+
+                  {/* CALLER AUDIO: Frequency-domain view */}
+                  <Spectrogram
+                    channelData={activeAudio?.channel0}
+                    duration={activeAudio?.duration}
+                    isAnalyzing={isAnalyzing}
+                  />
+
+                  {/* DETECTION RESULT: real model evidence */}
+                  <DetectionSignals
+                    isSynthetic={analysisResult?.is_synthetic}
+                    confidence={analysisResult?.confidence}
+                    scoreTotal={analysisResult?.score_total}
+                    acousticLLR={analysisResult?.llr_acoustic_cum}
+                    behavioralLLR={analysisResult?.llr_behavioral_cum}
+                    acousticSegments={analysisResult?.n_acoustic_segments}
+                    behavioralEvents={analysisResult?.n_behavioral_events}
+                  />
+
+                  {/* CONVERSATION ANALYSIS: real behavioral evidence */}
+                  <ResponseTiming
+                    isSynthetic={analysisResult?.is_synthetic}
+                    behavioralLLR={analysisResult?.llr_behavioral_cum}
+                    behavioralEvents={analysisResult?.n_behavioral_events}
+                    scoreTotal={analysisResult?.score_total}
+                  />
+
+                  {/* Verdict based on real detector result */}
+                  <VerdictPanel
+                    result={analysisResult}
+                    isAnalyzing={isAnalyzing}
+                    activeMode={activeMode}
+                  />
+                </div>
               )}
             </div>
 
-            {/* Column 2: Visualizer & Results */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {/* CALLER AUDIO: Conversation Sound Wave */}
-              <StereoWaveform
-                channel0={activeAudio?.channel0}
-                channel1={activeAudio?.channel1}
-                duration={activeAudio?.duration}
-                isSynthetic={analysisResult?.is_synthetic}
-                isAnalyzing={isAnalyzing}
-              />
-
-              {/* CALLER AUDIO: Frequency-domain view */}
-              <Spectrogram
-                channelData={activeAudio?.channel0}
-                duration={activeAudio?.duration}
-                isAnalyzing={isAnalyzing}
-              />
-
-              {/* DETECTION RESULT: signal meters */}
-              <DetectionSignals
-                isSynthetic={analysisResult?.is_synthetic}
-                confidence={analysisResult?.confidence}
-                scoreTotal={analysisResult?.score_total}
-                acousticLLR={analysisResult?.llr_acoustic_cum}
-                behavioralLLR={analysisResult?.llr_behavioral_cum}
-                acousticSegments={analysisResult?.n_acoustic_segments}
-                behavioralEvents={analysisResult?.n_behavioral_events}
-              />
-              {/* CONVERSATION ANALYSIS: turn response timing */}
-              <ResponseTiming
-                isSynthetic={analysisResult?.is_synthetic}
-                behavioralLLR={analysisResult?.llr_behavioral_cum}
-                behavioralEvents={analysisResult?.n_behavioral_events}
-                scoreTotal={analysisResult?.score_total}
-              />
-
-              {/* Clear, Friendly Verdict & LLM Explanation */}
-              <VerdictPanel
-                result={analysisResult}
-                isAnalyzing={isAnalyzing}
-                activeMode={activeMode}
-              />
-            </div>
-          </div>
-
-          {/* Recent Calls History */}
-          <CallHistory
-            history={history}
-            onSelectHistoryItem={(item) => {
-              if (item.resultData) setAnalysisResult(item.resultData);
-            }}
-          />
-        </main>
-      </>}
+            {/* Recent Calls History */}
+            <CallHistory
+              history={history}
+              onSelectHistoryItem={(item) => {
+                if (item.resultData) {
+                  setAnalysisResult(item.resultData);
+                  setVerdictFor(item.title);
+                }
+              }}
+            />
+          </main>
+        </>
+      )}
 
       {/* Footer */}
-      <footer style={{
-        borderTop: '1px solid var(--border-glass)',
-        padding: '18px 24px',
-        background: 'rgba(7, 9, 20, 0.95)',
-        textAlign: 'center',
-        fontSize: '0.78rem',
-        color: 'var(--text-subtle)'
-      }}>
-        AuraVoice • Desarrollado para el reto de Tecnologías Altur en HackMTY26 • Soporte para <code style={{ color: '#00f2fe' }}>POST /detect</code> y <code style={{ color: '#ff3366' }}>POST /detect_streaming</code>
+      <footer
+        style={{
+          borderTop: '1px solid var(--border-glass)',
+          padding: '18px 24px',
+          background: 'rgba(7, 9, 20, 0.95)',
+          textAlign: 'center',
+          fontSize: '0.78rem',
+          color: 'var(--text-subtle)'
+        }}
+      >
+        AuraVoice • Desarrollado para el reto de Tecnologías Altur en
+        HackMTY26 • Soporte para{' '}
+        <code style={{ color: '#00f2fe' }}>
+          POST /detect
+        </code>{' '}
+        y{' '}
+        <code style={{ color: '#ff3366' }}>
+          POST /detect_streaming
+        </code>
       </footer>
     </div>
   );

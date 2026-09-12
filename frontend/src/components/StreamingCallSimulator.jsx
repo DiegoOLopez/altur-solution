@@ -275,74 +275,99 @@ export default function StreamingCallSimulator({
   const isSynthetic = detection?.is_synthetic ?? null;
 
   return (
-    <section className="streaming-recorder">
-      <header className="streaming-recorder__header">
+    <section className="streaming-call-simulator bg-white text-gray-900 font-sans py-20 px-4 md:px-8 max-w-6xl mx-auto">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
         <div>
-          <span className="streaming-recorder__eyebrow">STREAMING CALL SIMULATOR</span>
-          <h2>Centro de monitoreo</h2>
+          <span className="text-gray-500 text-sm font-semibold tracking-wider uppercase mb-2 block">STREAMING CALL SIMULATOR</span>
+          <h2 className="font-serif text-4xl md:text-5xl font-bold">Centro de monitoreo</h2>
         </div>
-        <span className={`streaming-recorder__status ${isRecording ? "is-live" : ""}`}>
-          <span className="streaming-recorder__status-dot" />
+        <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium ${isRecording ? "bg-green-50 text-green-700 ring-1 ring-green-600/20" : isStarting ? "bg-amber-50 text-amber-700 ring-1 ring-amber-600/20" : "bg-gray-100 text-gray-600"}`}>
+          <span className={`w-2 h-2 rounded-full ${isRecording ? "bg-green-500 animate-pulse" : isStarting ? "bg-amber-500 animate-pulse" : "bg-gray-400"}`} />
           {isRecording ? "En vivo" : isStarting ? "Preparando" : "En espera"}
         </span>
       </header>
 
-      <div className="streaming-recorder__bento">
-        <div className={`streaming-recorder__tile streaming-recorder__tile--control ${isRecording ? "is-live" : ""}`}>
-          <div className="streaming-recorder__tile-label"><Mic size={15} /> CAPTURA DE AUDIO</div>
-          <div className="streaming-recorder__control-copy">
-            <strong>{isRecording ? "Transmisión activa" : "Micrófono listo"}</strong>
-            <span>{isRecording ? "Enviando señal al detector" : "Inicia una llamada para analizarla"}</span>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className={`bg-gray-50 rounded-2xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col justify-between ${isRecording ? "ring-2 ring-green-500/20" : ""}`}>
+          <div>
+            <div className="flex items-center gap-2 text-gray-500 text-sm font-medium mb-4 uppercase tracking-wide"><Mic size={16} /> Captura de audio</div>
+            <div className="mb-8 flex flex-col gap-1">
+              <strong className="text-gray-900 text-lg">{isRecording ? "Transmisión activa" : "Micrófono listo"}</strong>
+              <span className="text-gray-500 text-sm">{isRecording ? "Enviando señal al detector" : "Inicia una llamada para analizarla"}</span>
+            </div>
           </div>
           <button
-            className={`streaming-recorder__button ${isRecording ? "is-stop" : ""}`}
+            className={`w-full flex items-center justify-center gap-2 rounded-full px-6 py-3 font-medium transition-all ${isRecording ? "bg-gray-200 text-gray-900 hover:bg-gray-300" : "bg-black text-white hover:bg-gray-800"}`}
             onClick={isRecording ? stop : startRecording}
             disabled={isStarting}
           >
-            {isRecording ? <CircleStop size={17} /> : <Mic size={17} />}
+            {isRecording ? <CircleStop size={18} /> : <Mic size={18} />}
             {isStarting ? "Conectando..." : isRecording ? "Detener grabación" : "Empezar a grabar"}
           </button>
         </div>
 
-        <div className="streaming-recorder__tile streaming-recorder__tile--server">
-          <div className="streaming-recorder__tile-label"><Server size={15} /> BACKEND</div>
-          <div className="streaming-recorder__metric-icon"><Wifi size={19} /></div>
-          <strong>{isConnected ? "Conectado" : "Desconectado"}</strong>
-          <span>WebSocket /detect</span>
-        </div>
-
-        <div className="streaming-recorder__tile streaming-recorder__tile--signal">
-          <div className="streaming-recorder__tile-label"><Radio size={15} /> SEÑAL ENTRANTE</div>
-          <div className="streaming-recorder__wave" aria-hidden="true">
-            {[12, 24, 38, 20, 50, 29, 42, 17, 31, 46, 23, 36, 15].map((height, index) => (
-              <span key={index} style={{ height: `${height}px` }} />
-            ))}
-          </div>
-          <div className="streaming-recorder__signal-caption">
-            <strong>{sampleRate ?? "-"} Hz</strong>
-            <span>{chunksSent} chunks enviados</span>
+        <div className="bg-gray-50 rounded-2xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col">
+          <div className="flex items-center gap-2 text-gray-500 text-sm font-medium mb-4 uppercase tracking-wide"><Server size={16} /> Backend</div>
+          <div className="flex-1 flex flex-col justify-center items-center text-center py-4">
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${isConnected ? "bg-green-100 text-green-600" : "bg-gray-200 text-gray-400"}`}>
+              <Wifi size={24} />
+            </div>
+            <strong className="text-gray-900 text-lg mb-1">{isConnected ? "Conectado" : "Desconectado"}</strong>
+            <span className="text-gray-500 text-sm">WebSocket /detect</span>
           </div>
         </div>
 
-        <div className="streaming-recorder__tile streaming-recorder__tile--result">
-          <div className="streaming-recorder__result-heading">
-            <div className="streaming-recorder__tile-label"><Activity size={15} /> DETECCIÓN</div>
-            <span>{detection ? "Actualizado" : "Esperando señal"}</span>
+        <div className="bg-gray-50 rounded-2xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col">
+          <div className="flex items-center gap-2 text-gray-500 text-sm font-medium mb-4 uppercase tracking-wide"><Radio size={16} /> Señal Entrante</div>
+          <div className="flex-1 flex flex-col justify-center py-4">
+            <div className="flex items-end justify-center gap-1.5 h-16 mb-6 opacity-60" aria-hidden="true">
+              {[12, 24, 38, 20, 50, 29, 42, 17, 31, 46, 23, 36, 15].map((height, index) => (
+                <span key={index} className={`w-1.5 rounded-t-sm ${isRecording ? "bg-green-500 animate-pulse" : "bg-gray-300"}`} style={{ height: `${height}px`, animationDelay: `${index * 0.1}s` }} />
+              ))}
+            </div>
+            <div className="flex flex-col text-center">
+              <strong className="text-gray-900 text-lg mb-1">{sampleRate ?? "-"} Hz</strong>
+              <span className="text-gray-500 text-sm">{chunksSent} chunks enviados</span>
+            </div>
           </div>
+        </div>
+
+        <div className="bg-gray-50 rounded-2xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2 text-gray-500 text-sm font-medium uppercase tracking-wide"><Activity size={16} /> Detección</div>
+            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${detection ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-600"}`}>
+              {detection ? "Actualizado" : "Esperando"}
+            </span>
+          </div>
+          
           {!detection ? (
-            <p>La primera inferencia aparecerá durante la grabación.</p>
+            <div className="flex-1 flex items-center justify-center text-center py-4">
+              <p className="text-gray-500 text-sm leading-relaxed">La primera inferencia aparecerá durante la grabación.</p>
+            </div>
           ) : (
-            <>
-              <div className="streaming-recorder__verdict">
+            <div className="flex-1 flex flex-col justify-center">
+              <div className={`text-center py-3 px-4 rounded-xl mb-6 font-medium text-lg ${isSynthetic ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>
                 {isSynthetic ? "Voz sintética" : "Voz humana"}
               </div>
-              <div className="streaming-recorder__details">
-                <span><strong>Confianza</strong> {confidence !== null ? `${(confidence * 100).toFixed(2)}%` : "-"}</span>
-                <span><strong>Tiempo</strong> {detection.t}s</span>
-                <span><strong>Segmentos</strong> {detection.n_acoustic_segments ?? detection.segments_analyzed ?? "-"}</span>
-                <span><strong>Score</strong> {detection.score_total ?? "-"}</span>
+              <div className="grid grid-cols-2 gap-y-4 gap-x-2 text-sm">
+                <div className="flex flex-col">
+                  <span className="text-gray-500 mb-0.5">Confianza</span>
+                  <strong className="text-gray-900">{confidence !== null ? `${(confidence * 100).toFixed(2)}%` : "-"}</strong>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-gray-500 mb-0.5">Tiempo</span>
+                  <strong className="text-gray-900">{detection.t}s</strong>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-gray-500 mb-0.5">Segmentos</span>
+                  <strong className="text-gray-900">{detection.n_acoustic_segments ?? detection.segments_analyzed ?? "-"}</strong>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-gray-500 mb-0.5">Score</span>
+                  <strong className="text-gray-900">{detection.score_total ?? "-"}</strong>
+                </div>
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>
