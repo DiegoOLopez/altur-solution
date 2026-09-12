@@ -9,14 +9,12 @@ from fastapi import (
 from backend.services.audio_normalizer import (
     AudioNormalizer,
 )
-from backend.services.sliding_window import (
-    SlidingWindow,
-)
-
+from backend.services.detector import AudioDetector
 
 router = APIRouter(
     tags=["WebSocket"],
 )
+
 
 
 @router.websocket("/ws/detect")
@@ -89,8 +87,7 @@ async def detect_websocket(websocket: WebSocket):
         # ==========================================================
 
         normalizer = AudioNormalizer(sample_rate)
-        sliding_window = SlidingWindow()
-
+        detector = AudioDetector()
         await websocket.send_json(
             {
                 "event": "ready",
@@ -108,64 +105,39 @@ async def detect_websocket(websocket: WebSocket):
         # 4. Recibir audio
         # ==========================================================
 
+        chunk_number = 0
+
         while True:
             audio_chunk = await websocket.receive_bytes()
 
-            # ------------------------------------------------------
-            # Normalizar
-            # ------------------------------------------------------
+            chunk_number += 1
 
             normalized_audio = normalizer.process(
                 audio_chunk
             )
 
-            # ------------------------------------------------------
-            # Ventana deslizante
-            # ------------------------------------------------------
-
-            windows = sliding_window.add(
-                normalized_audio
+            snapshot = detector.process_audio(
+                normalized_audio,
+                16_000,
             )
-
-            # ------------------------------------------------------
-            # Informar recepción
-            # ------------------------------------------------------
 
             await websocket.send_json(
                 {
                     "event": "chunk_processed",
+                    "chunk": chunk_number,
                     "input_bytes": len(audio_chunk),
                     "output_bytes": len(normalized_audio),
-                    "windows_ready": len(windows),
+                    "detection_ready": snapshot is not None,
                 }
             )
 
-            # ------------------------------------------------------
-            # Procesar ventanas
-            # ------------------------------------------------------
-
-            for window in windows:
+            if snapshot is not None:
                 await websocket.send_json(
                     {
-                        "event": "window_ready",
-                        "window": sliding_window.window_number,
-                        "bytes": len(window),
-                        "duration_ms": 1000,
+                        "event": "detection",
+                        "result": snapshot,
                     }
                 )
-
-                # ==================================================
-                # AQUÍ ENTRA EL MODELO
-                # ==================================================
-                #
-                # result = detector.predict(window)
-                #
-                # await websocket.send_json(
-                #     {
-                #         "event": "detection",
-                #         "result": result,
-                #     }
-                # )
 
     except WebSocketDisconnect:
         print("WebSocket disconnected")
