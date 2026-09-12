@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  AudioLines,
   Check,
   ChevronDown,
   CornerDownLeft,
@@ -29,7 +28,6 @@ function Waveform({ playing }) {
 
 function NoteRow({ note, playing, onPlay, onClassify }) {
   return <article className="review-note-row">
-    <div className={`review-note-art ${note.accent}`}><AudioLines size={20} /></div>
     <div className="review-note-info"><h3>{note.name}</h3><p>{note.date}<span>•</span>{note.duration}</p></div>
     <div className="review-note-player"><button className="review-play-button" onClick={onPlay} aria-label={playing ? `Pausar ${note.name}` : `Reproducir ${note.name}`}>{playing ? <Pause size={15} fill="currentColor" /> : <Play size={15} fill="currentColor" />}</button><Waveform playing={playing} /></div>
     <div className="review-note-actions" role="group" aria-label={`Clasificar ${note.name}`}>
