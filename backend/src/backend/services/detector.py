@@ -5,6 +5,10 @@ import joblib
 import numpy as np
 
 
+# ============================================================
+# Ubicación del detector externo
+# ============================================================
+
 DETECTOR_ROOT = (
     Path(__file__).resolve().parents[4] / "detector"
 )
@@ -12,6 +16,10 @@ DETECTOR_ROOT = (
 if str(DETECTOR_ROOT) not in sys.path:
     sys.path.insert(0, str(DETECTOR_ROOT))
 
+
+# ============================================================
+# Modelo entrenado
+# ============================================================
 
 MODEL_PATH = (
     Path(__file__).resolve().parent.parent
@@ -22,14 +30,28 @@ MODEL_PATH = (
 
 class AudioDetector:
     def __init__(self):
+        """
+        Carga el modelo entrenado una sola vez al iniciar
+        el servicio.
+        """
+
         self.model = joblib.load(MODEL_PATH)
+
+        # Sesión utilizada por el detector en modo streaming.
         self.session = self.model.new_session()
+
 
     def process_audio(
         self,
         audio: bytes,
         sample_rate: int,
     ) -> dict | None:
+        """
+        Procesa audio en modo streaming.
+
+        Este método se mantiene para el WebSocket.
+        """
+
         if not audio:
             return None
 
@@ -51,5 +73,36 @@ class AudioDetector:
         if snapshot is None:
             return None
 
-        # Obtenemos el snapshot calibrado del detector.
         return self.session.current_snapshot()
+
+
+    def detect_offline(
+        self,
+        audio: bytes,
+    ) -> dict:
+        """
+        Procesa una llamada completa en modo offline.
+
+        El modelo recibe directamente el WAV original porque
+        internamente se encarga de:
+
+        - cargar el WAV
+        - convertir/resamplear a 16 kHz
+        - separar caller y agente
+        - analizar características acústicas
+        - analizar comportamiento conversacional
+        - calcular LLR
+        - aplicar calibración
+        - generar el resultado final
+
+        Es importante NO extraer solamente Channel 0 antes
+        de llamar al modelo, ya que el modelo necesita el
+        audio estéreo para su análisis comportamental.
+        """
+
+        if not audio:
+            raise ValueError("Audio cannot be empty.")
+
+        result = self.model.predict_offline(audio)
+
+        return result

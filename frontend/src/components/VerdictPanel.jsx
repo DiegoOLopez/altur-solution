@@ -35,15 +35,8 @@ export default function VerdictPanel({ result, isAnalyzing, activeMode }) {
   }
 
   const isSynthetic = result ? result.is_synthetic : false;
-  const confidencePct = Math.round((result?.confidence || 0.96) * 1000) / 10;
-  const metrics = result?.metrics || {
-    acoustic_score: isSynthetic ? 93 : 8,
-    spectral_artifacts: isSynthetic ? 'Artefactos vocoder neural en 3.8 kHz.' : 'Voz humana con atenuación natural.',
-    turn_recovery_ms: isSynthetic ? 180 : 420,
-    conversational_messiness: isSynthetic ? 12 : 88,
-    breathing_detected: !isSynthetic,
-    semantic_hallucination: isSynthetic
-  };
+  const confidencePct =
+    Math.round((result?.confidence || 0) * 1000) / 10;
 
   return (
     <div className="avant-card" style={{
@@ -98,7 +91,7 @@ export default function VerdictPanel({ result, isAnalyzing, activeMode }) {
               color: isSynthetic ? '#e11d48' : '#059669',
               marginBottom: '2px'
             }}>
-              {isSynthetic ? 'Alerta de Suplantación Telefónica' : 'Identidad Biométrica Confirmada'}
+              {isSynthetic ? 'Posible Voz Sintética' : 'Voz Clasificada como Humana'}
             </div>
             <h2 style={{
               fontSize: '1.5rem',
@@ -107,12 +100,12 @@ export default function VerdictPanel({ result, isAnalyzing, activeMode }) {
               color: 'var(--altur-black)',
               lineHeight: 1.2
             }}>
-              {isSynthetic ? 'Voz Sintética (Deepfake)' : 'Voz Humana Auténtica'}
+              {isSynthetic ? 'Voz Sintética' : 'Voz Humana'}
             </h2>
             <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
               {isSynthetic
-                ? 'El llamante utiliza un sintetizador o clonador de voz neuronal con IA.'
-                : 'El llamante presenta modulación biológica natural sin indicios de manipulación.'}
+                ? 'El modelo clasificó la voz como sintética.'
+                : 'El modelo clasificó la voz como humana.'}
             </p>
           </div>
         </div>
@@ -140,87 +133,171 @@ export default function VerdictPanel({ result, isAnalyzing, activeMode }) {
         </div>
       </div>
 
-      {/* 3 Clear Signal Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
-        {/* Signal 1: Acoustic */}
-        <div style={{
-          background: '#f8fafc',
-          border: '1px solid var(--border-card)',
-          borderRadius: 'var(--radius-sm)',
-          padding: '16px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#0284c7', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Waves size={16} />
-              1. Tono y Acústica
-            </span>
-            <span className="altur-badge" style={{
-              background: metrics.breathing_detected ? 'var(--accent-emerald-light)' : 'var(--accent-rose-light)',
-              color: metrics.breathing_detected ? '#059669' : '#e11d48'
-            }}>
-              {metrics.breathing_detected ? 'Respiración OK' : 'Robótico'}
+      {/* Real model evidence */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: '14px'
+        }}
+      >
+        {/* Acoustic evidence */}
+        <div
+          style={{
+            background: '#f8fafc',
+            border: '1px solid var(--border-card)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '16px'
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginBottom: '8px'
+            }}
+          >
+            <Waves size={16} color="#0284c7" />
+
+            <span
+              style={{
+                fontSize: '0.84rem',
+                fontWeight: 800
+              }}
+            >
+              Evidencia Acústica
             </span>
           </div>
-          <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-            {metrics.spectral_artifacts}
+
+          <div
+            className="font-mono"
+            style={{
+              fontSize: '1.05rem',
+              fontWeight: 800
+            }}
+          >
+            {result?.llr_acoustic_cum?.toFixed(2) ?? '—'}
+          </div>
+
+          <p
+            style={{
+              fontSize: '0.74rem',
+              color: 'var(--text-secondary)',
+              marginTop: '5px'
+            }}
+          >
+            LLR acústico acumulado
           </p>
         </div>
 
-        {/* Signal 2: Conversational rhythm */}
-        <div style={{
-          background: '#f8fafc',
-          border: '1px solid var(--border-card)',
-          borderRadius: 'var(--radius-sm)',
-          padding: '16px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#6366f1', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Clock size={16} />
-              2. Ritmo de Diálogo
-            </span>
-            <span className="font-mono altur-badge badge-violet">
-              {metrics.turn_recovery_ms}ms
+
+        {/* Behavioral evidence */}
+        <div
+          style={{
+            background: '#f8fafc',
+            border: '1px solid var(--border-card)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '16px'
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginBottom: '8px'
+            }}
+          >
+            <Clock size={16} color="#6366f1" />
+
+            <span
+              style={{
+                fontSize: '0.84rem',
+                fontWeight: 800
+              }}
+            >
+              Evidencia Conversacional
             </span>
           </div>
-          <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-            {isSynthetic
-              ? 'Pausa fija e invariable tras interrupciones del agente bancario.'
-              : 'Vacilación y tiempo de reacción natural de una persona real.'}
+
+          <div
+            className="font-mono"
+            style={{
+              fontSize: '1.05rem',
+              fontWeight: 800
+            }}
+          >
+            {result?.llr_behavioral_cum?.toFixed(2) ?? '—'}
+          </div>
+
+          <p
+            style={{
+              fontSize: '0.74rem',
+              color: 'var(--text-secondary)',
+              marginTop: '5px'
+            }}
+          >
+            LLR comportamental acumulado
           </p>
         </div>
 
-        {/* Signal 3: Semantic coherence */}
-        <div style={{
-          background: '#f8fafc',
-          border: '1px solid var(--border-card)',
-          borderRadius: 'var(--radius-sm)',
-          padding: '16px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#d97706', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Sparkles size={16} />
-              3. Coherencia Semántica
-            </span>
-            <span className="altur-badge" style={{
-              background: metrics.semantic_hallucination ? 'var(--accent-rose-light)' : 'var(--accent-emerald-light)',
-              color: metrics.semantic_hallucination ? '#e11d48' : '#059669'
-            }}>
-              {metrics.semantic_hallucination ? 'Alucinación' : 'Coherente'}
+
+        {/* Analysis volume */}
+        <div
+          style={{
+            background: '#f8fafc',
+            border: '1px solid var(--border-card)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '16px'
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginBottom: '8px'
+            }}
+          >
+            <Sparkles size={16} color="#d97706" />
+
+            <span
+              style={{
+                fontSize: '0.84rem',
+                fontWeight: 800
+              }}
+            >
+              Profundidad del Análisis
             </span>
           </div>
-          <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-            {metrics.semantic_hallucination
-              ? 'El modelo inventó datos ante una pregunta trampa inexistente.'
-              : 'El interlocutor respondió con naturalidad.'}
+
+          <div
+            className="font-mono"
+            style={{
+              fontSize: '1.05rem',
+              fontWeight: 800
+            }}
+          >
+            {result?.n_acoustic_segments ?? 0}
+            <span
+              style={{
+                fontSize: '0.75rem',
+                fontWeight: 600
+              }}
+            >
+              {' '}segmentos
+            </span>
+          </div>
+
+          <p
+            style={{
+              fontSize: '0.74rem',
+              color: 'var(--text-secondary)',
+              marginTop: '5px'
+            }}
+          >
+            {result?.n_behavioral_events ?? 0} eventos conversacionales analizados
           </p>
         </div>
       </div>
@@ -238,7 +315,7 @@ export default function VerdictPanel({ result, isAnalyzing, activeMode }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <MessageSquareQuote size={18} color="#0284c7" />
           <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--altur-black)' }}>
-            Dictamen Forense Explicable (LLM):
+            Interpretación del Modelo:
           </h4>
         </div>
         <p style={{
@@ -247,7 +324,7 @@ export default function VerdictPanel({ result, isAnalyzing, activeMode }) {
           color: 'var(--text-primary)',
           whiteSpace: 'pre-line'
         }}>
-          {result?.llm_conclusion || 'Listo para procesar la llamada telefónica.'}
+          {result?.llm_conclusion || 'Ejecuta el análisis para obtener el resultado del modelo.'}
         </p>
       </div>
     </div>

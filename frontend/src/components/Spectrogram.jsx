@@ -34,10 +34,8 @@ function colormap(v) {
   return STOPS[STOPS.length - 1][1];
 }
 
-const ARTIFACT_LO = 3600;
-const ARTIFACT_HI = 3950;
 
-export default function Spectrogram({ channelData, sampleRate = 8000, duration, isSynthetic, isAnalyzing }) {
+export default function Spectrogram({ channelData, sampleRate = 8000, duration, isAnalyzing }) {
   const canvasRef = useRef(null);
   const W = 800;
   const H = 200;
@@ -60,11 +58,7 @@ export default function Spectrogram({ channelData, sampleRate = 8000, duration, 
       return;
     }
 
-    // Frequency -> vertical pixel (low freq at the bottom)
-    const rowOfBin = (bin) => {
-      const freq = (bin / (spec.bins - 1)) * spec.maxFreq;
-      return Math.round((freq / spec.maxFreq) * H);
-    };
+
 
     // Background grid
     ctx.strokeStyle = '#e2e8f0';
@@ -97,25 +91,6 @@ export default function Spectrogram({ channelData, sampleRate = 8000, duration, 
       }
     }
 
-    // Artifact band overlay (3.8 kHz neural vocoder signature)
-    if (isSynthetic) {
-      const yLo = rowOfBin(Math.floor((ARTIFACT_LO / spec.maxFreq) * (spec.bins - 1)));
-      const yHi = rowOfBin(Math.ceil((ARTIFACT_HI / spec.maxFreq) * (spec.bins - 1)));
-      ctx.fillStyle = 'rgba(225, 29, 72, 0.12)';
-      ctx.fillRect(0, H - yHi, W, yHi - yLo);
-
-      ctx.strokeStyle = '#e11d48';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([4, 4]);
-      ctx.strokeRect(0, H - yHi, W, yHi - yLo);
-      ctx.setLineDash([]);
-
-      ctx.fillStyle = '#e11d48';
-      ctx.font = '800 10px JetBrains Mono, monospace';
-      const label = 'ARTEFACTO 3.8 kHz';
-      const lw = ctx.measureText(label).width;
-      ctx.fillText(label, W - lw - 10, H - yHi - 9);
-    }
 
     // Axis labels
     ctx.fillStyle = '#94a3b8';
@@ -124,7 +99,7 @@ export default function Spectrogram({ channelData, sampleRate = 8000, duration, 
     for (let f = 0; f <= 4000; f += 1000) {
       ctx.fillText(`${f / 1000}kHz`, 6, H - Math.round((f / spec.maxFreq) * H) - 4);
     }
-  }, [spec, isSynthetic]);
+  }, [spec]);
 
   return (
     <div className="avant-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -147,10 +122,8 @@ export default function Spectrogram({ channelData, sampleRate = 8000, duration, 
       </div>
 
       <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-        Distribución espectral en tiempo real del llamante. Los picos sostenidos en la banda 3.6–3.95 kHz
-        delatan artefactos de vocoder neural típicos de clonación de voz.
+        Representación tiempo-frecuencia del audio del llamante mediante una transformada de Fourier de tiempo corto.
       </p>
-
       {/* Spectrogram Canvas */}
       <div style={{
         position: 'relative',

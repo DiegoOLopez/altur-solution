@@ -9,7 +9,7 @@ import ResponseTiming from './components/ResponseTiming';
 import VerdictPanel from './components/VerdictPanel';
 import CallHistory from './components/CallHistory';
 import ReviewHub from './components/ReviewHub';
-import { generateMockScenario, callDetectApi } from './utils/audioUtils';
+import { callDetectApi } from './utils/audioUtils';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'http://localhost:8000';
 
@@ -19,88 +19,113 @@ export default function App() {
   const [activeAudio, setActiveAudio] = useState(null);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [verdictFor, setVerdictFor] = useState(null); // title de activeAudio al que pertenece analysisResult
-  const [history, setHistory] = useState([
-    {
-      title: 'Llamada #041: Transferencia SPEI Urgente',
-      timestamp: '23:12:05',
-      duration: 5.4,
-      is_synthetic: true,
-      confidence: 0.942,
-      latency_ms: 114
-    },
-    {
-      title: 'Llamada #040: Consulta de Saldo en Línea',
-      timestamp: '22:58:30',
-      duration: 6.2,
-      is_synthetic: false,
-      confidence: 0.981,
-      latency_ms: 92
-    }
-  ]);
+  const [history, setHistory] = useState([]);
 
-  // Pre-load default deepfake mock on initial load so the UI looks active right away
-  React.useEffect(() => {
-    const defaultMock = generateMockScenario('deepfake');
-    setActiveAudio({
-      title: defaultMock.title,
-      channel0: defaultMock.channel0,
-      channel1: defaultMock.channel1,
-      duration: defaultMock.duration,
-      base64: 'UklGR...',
-      mockResult: defaultMock
-    });
-    setAnalysisResult(defaultMock);
-    setVerdictFor(defaultMock.title);
-  }, []);
 
   // Handler for audio selection in Batch Mode
   const handleAudioReady = (audioData) => {
     setActiveAudio(audioData);
-    if (audioData.mockResult) {
-      setAnalysisResult(audioData.mockResult);
-      setVerdictFor(audioData.title);
-    } else {
-      setVerdictFor(null);
-    }
+
+    // El nuevo audio todavía no ha sido analizado.
+    // No mostramos ningún resultado previo o simulado.
+    setAnalysisResult(null);
+    setVerdictFor(null);
   };
 
   // Handler for Batch Analysis (POST /detect)
   const handleRunBatchAnalysis = async () => {
     if (!activeAudio) return;
+
     setIsAnalyzing(true);
+
     const startTime = performance.now();
 
     try {
-      // Call POST /detect (multipart `file`)
-      const data = await callDetectApi(API_BASE, activeAudio.base64);
-      const latency = Math.round(performance.now() - startTime);
+      // --------------------------------------------------------
+      // Enviar el WAV al backend
+      // --------------------------------------------------------
 
-      // El backend hoy normaliza el WAV (8->16 kHz) pero no clasifica aún (Fase 2 IA).
-      // Mantenemos el veredicto demo de alta fidelidad y exponemos el resultado real de la subida.
-      const base = activeAudio.mockResult || generateMockScenario('deepfake');
+      const data = await callDetectApi(
+        API_BASE,
+        activeAudio.base64
+      );
+
+      const latency = Math.round(
+        performance.now() - startTime
+      );
+
+
+      // --------------------------------------------------------
+      // Resultado REAL del modelo
+      // --------------------------------------------------------
+
       const res = {
-        ...base,
-        latency_ms: latency,
-        apiResponse: data,
-        llm_conclusion: `${base.llm_conclusion}
+        is_synthetic: data.is_synthetic,
+        confidence: data.confidence,
 
-[POST /detect OK] ${data.message} (${data.original_sample_rate} Hz -> ${data.final_sample_rate} Hz, converted=${data.converted})`
+        // Latencia real de la petición HTTP
+        latency_ms: latency,
+
+        // Evidencia generada por el modelo
+        score_total: data.score_total,
+        llr_acoustic_cum: data.llr_acoustic_cum,
+        llr_behavioral_cum: data.llr_behavioral_cum,
+
+        // Cantidad real de elementos analizados
+        n_acoustic_segments: data.n_acoustic_segments,
+        n_behavioral_events: data.n_behavioral_events,
+
+        // Umbral utilizado por el detector
+        eta: data.eta,
+
+        // Respuesta original del backend
+        apiResponse: data,
+
+        // Explicación basada únicamente en el resultado real
+        llm_conclusion: data.is_synthetic
+          ? `El detector clasificó la llamada como voz sintética con una confianza de ${(data.confidence * 100).toFixed(1)}%. El resultado se obtiene a partir de la evidencia acústica y comportamental acumulada por el modelo.`
+          : `El detector clasificó la llamada como voz humana con una confianza de ${(data.confidence * 100).toFixed(1)}%. El resultado se obtiene a partir de la evidencia acústica y comportamental acumulada por el modelo.`
       };
+
+
+      // --------------------------------------------------------
+      // Actualizar UI
+      // --------------------------------------------------------
+
       setAnalysisResult(res);
       setVerdictFor(activeAudio.title);
-      addHistoryItem(res, activeAudio.title);
-      setIsAnalyzing(false);
+
+      addHistoryItem(
+        res,
+        activeAudio.title
+      );
+
     } catch (err) {
-      // Fallback to high fidelity demo response
-      setTimeout(() => {
-        const latency = Math.round(performance.now() - startTime + 90);
-        const res = activeAudio.mockResult || generateMockScenario('deepfake');
-        res.latency_ms = latency;
-        setAnalysisResult(res);
-        setVerdictFor(activeAudio.title);
-        addHistoryItem(res, activeAudio.title);
-        setIsAnalyzing(false);
-      }, 500);
+
+      console.error(
+        'Error calling POST /detect:',
+        err
+      );
+
+
+      // --------------------------------------------------------
+      // IMPORTANTE:
+      // No utilizar mock si falla el backend.
+      // --------------------------------------------------------
+
+      setAnalysisResult({
+        error: true,
+        errorMessage:
+          err?.message ||
+          'No se pudo completar el análisis.'
+      });
+
+      setVerdictFor(activeAudio.title);
+
+    } finally {
+
+      setIsAnalyzing(false);
+
     }
   };
 
@@ -184,91 +209,96 @@ La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosó
       />
 
       {activeMode === 'review' ? <ReviewHub /> : <>
-      {/* Main Responsive Grid */}
-      <main style={{
-        maxWidth: '1400px',
-        margin: '0 auto',
-        padding: '28px 24px',
-        width: '100%',
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '24px'
-      }}>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
-          gap: '24px',
-          alignItems: 'start'
+        {/* Main Responsive Grid */}
+        <main style={{
+          maxWidth: '1400px',
+          margin: '0 auto',
+          padding: '28px 24px',
+          width: '100%',
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '24px'
         }}>
-          {/* Column 1: Mode Specific Input Hub */}
-          <div>
-            {activeMode === 'batch' ? (
-              <BatchInput
-                onAudioReady={handleAudioReady}
-                onRunBatchAnalysis={handleRunBatchAnalysis}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
+            gap: '24px',
+            alignItems: 'start'
+          }}>
+            {/* Column 1: Mode Specific Input Hub */}
+            <div>
+              {activeMode === 'batch' ? (
+                <BatchInput
+                  onAudioReady={handleAudioReady}
+                  onRunBatchAnalysis={handleRunBatchAnalysis}
+                  isAnalyzing={isAnalyzing}
+                  currentAudioTitle={activeAudio?.title}
+                  verdictTitle={verdictFor}
+                />
+              ) : (
+                <StreamingCallSimulator
+                  onStreamingUpdate={handleStreamingUpdate}
+                  onCallFinished={handleCallFinished}
+                  onRecordingResult={handleRecordingResult}
+                  apiBaseUrl={API_BASE}
+                />
+              )}
+            </div>
+
+            {/* Column 2: Visualizer & Results */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* CALLER AUDIO: Conversation Sound Wave */}
+              <StereoWaveform
+                channel0={activeAudio?.channel0}
+                channel1={activeAudio?.channel1}
+                duration={activeAudio?.duration}
+                isSynthetic={analysisResult?.is_synthetic}
                 isAnalyzing={isAnalyzing}
-                currentAudioTitle={activeAudio?.title}
-                verdictTitle={verdictFor}
               />
-            ) : (
-              <StreamingCallSimulator
-                onStreamingUpdate={handleStreamingUpdate}
-                onCallFinished={handleCallFinished}
-                onRecordingResult={handleRecordingResult}
-                apiBaseUrl={API_BASE}
+
+              {/* CALLER AUDIO: Frequency-domain view */}
+              <Spectrogram
+                channelData={activeAudio?.channel0}
+                duration={activeAudio?.duration}
+                isAnalyzing={isAnalyzing}
               />
-            )}
+
+              {/* DETECTION RESULT: signal meters */}
+              <DetectionSignals
+                isSynthetic={analysisResult?.is_synthetic}
+                confidence={analysisResult?.confidence}
+                scoreTotal={analysisResult?.score_total}
+                acousticLLR={analysisResult?.llr_acoustic_cum}
+                behavioralLLR={analysisResult?.llr_behavioral_cum}
+                acousticSegments={analysisResult?.n_acoustic_segments}
+                behavioralEvents={analysisResult?.n_behavioral_events}
+              />
+              {/* CONVERSATION ANALYSIS: turn response timing */}
+              <ResponseTiming
+                isSynthetic={analysisResult?.is_synthetic}
+                behavioralLLR={analysisResult?.llr_behavioral_cum}
+                behavioralEvents={analysisResult?.n_behavioral_events}
+                scoreTotal={analysisResult?.score_total}
+              />
+
+              {/* Clear, Friendly Verdict & LLM Explanation */}
+              <VerdictPanel
+                result={analysisResult}
+                isAnalyzing={isAnalyzing}
+                activeMode={activeMode}
+              />
+            </div>
           </div>
 
-          {/* Column 2: Visualizer & Results */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {/* CALLER AUDIO: Conversation Sound Wave */}
-            <StereoWaveform
-              channel0={activeAudio?.channel0}
-              channel1={activeAudio?.channel1}
-              duration={activeAudio?.duration}
-              isSynthetic={analysisResult?.is_synthetic}
-              isAnalyzing={isAnalyzing}
-            />
-
-            {/* CALLER AUDIO: Frequency-domain view */}
-            <Spectrogram
-              channelData={activeAudio?.channel0}
-              duration={activeAudio?.duration}
-              isSynthetic={analysisResult?.is_synthetic}
-              isAnalyzing={isAnalyzing}
-            />
-
-            {/* DETECTION RESULT: signal meters */}
-            <DetectionSignals
-              metrics={analysisResult?.metrics}
-              isSynthetic={analysisResult?.is_synthetic}
-            />
-
-            {/* CONVERSATION ANALYSIS: turn response timing */}
-            <ResponseTiming
-              isSynthetic={analysisResult?.is_synthetic}
-              turnRecoveryMs={analysisResult?.metrics?.turn_recovery_ms}
-            />
-
-            {/* Clear, Friendly Verdict & LLM Explanation */}
-            <VerdictPanel
-              result={analysisResult}
-              isAnalyzing={isAnalyzing}
-              activeMode={activeMode}
-            />
-          </div>
-        </div>
-
-        {/* Recent Calls History */}
-        <CallHistory
-          history={history}
-          onSelectHistoryItem={(item) => {
-            if (item.resultData) setAnalysisResult(item.resultData);
-          }}
-        />
-      </main>
+          {/* Recent Calls History */}
+          <CallHistory
+            history={history}
+            onSelectHistoryItem={(item) => {
+              if (item.resultData) setAnalysisResult(item.resultData);
+            }}
+          />
+        </main>
       </>}
 
       {/* Footer */}
