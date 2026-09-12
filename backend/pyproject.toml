@@ -12,6 +12,7 @@ dependencies = [
     "fastapi>=0.141.1",
     "joblib>=1.6.0",
     "librosa>=1.0.0",
+    "minio>=7.2.20",
     "pydantic-settings>=2.15.0",
     "pymysql>=1.2.0",
     "python-multipart>=0.0.32",

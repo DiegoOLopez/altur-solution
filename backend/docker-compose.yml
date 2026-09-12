@@ -13,6 +13,19 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
 
+  phpmyadmin:
+    image: phpmyadmin:5
+    container_name: phpmyadmin_audio_db
+    restart: always
+    depends_on:
+      - db
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_ARBITRARY: "0"
+    ports:
+      - "8080:80"
+
   storage:
     # Usamos el registro oficial de Quay.io para MinIO
     image: quay.io/minio/minio
