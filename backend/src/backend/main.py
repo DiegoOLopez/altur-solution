@@ -1,3 +1,12 @@
+"""
+AuraVoice - Punto de entrada de la API.
+
+Levanta la aplicación FastAPI que sirve los tres flujos de Altur:
+
+- ``POST /detect``: análisis forense de una llamada completa (batch).
+- ``/ws/detect``: análisis en tiempo real (streaming) vía WebSocket.
+- ``/review``: revisión y clasificación de las grabaciones persistidas.
+"""
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -29,4 +38,5 @@ app.include_router(websocket_router)
 
 @app.get("/")
 async def root():
+    """Health check de la API."""
     return {"message": "Altur Solution API"}

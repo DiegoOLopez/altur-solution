@@ -4,8 +4,8 @@ import binascii
 from fastapi import APIRouter, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 
-from ...services.detector import AudioDetector
 from ...schemas.detection import DetectionResponse
+from ...services.detector import AudioDetector
 
 
 router = APIRouter()
@@ -24,10 +24,6 @@ class DetectionJsonRequest(BaseModel):
 
 detector = AudioDetector()
 
-
-# ============================================================
-# POST /detect
-# ============================================================
 
 @router.post(
     "/detect",
@@ -92,11 +88,7 @@ async def detect_audio(
             detail="The uploaded file is empty.",
         )
 
-
-    # --------------------------------------------------------
-    # Ejecutar detector
-    # --------------------------------------------------------
-
+    # Ejecutar el detector offline y traducir los errores a respuestas HTTP.
     try:
         result = detector.detect_offline(audio_bytes)
 
@@ -111,10 +103,5 @@ async def detect_audio(
             status_code=500,
             detail=f"Detection failed: {str(exc)}",
         )
-
-
-    # --------------------------------------------------------
-    # Regresar resultado
-    # --------------------------------------------------------
 
     return result

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Play, Pause, RotateCcw, Activity, AlertCircle, Headphones } from 'lucide-react';
+import { Play, Pause, RotateCcw, AlertCircle } from 'lucide-react';
 
 export default function StereoWaveform({ channel0, channel1, duration, isSynthetic, isAnalyzing }) {
   const canvasRef = useRef(null);
@@ -224,16 +224,14 @@ export default function StereoWaveform({ channel0, channel1, duration, isSynthet
   };
 
   return (
-    <div className="avant-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div className="avant-card fx-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Activity size={18} color="#0284c7" />
-          <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--altur-black)' }}>
-            Osciloscopio Estéreo de Telefonía
-          </h3>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+        <div>
+          <span className="fx-kicker">Audio del llamante · Osciloscopio</span>
+          <h3 className="fx-card-title">Osciloscopio Estéreo de Telefonía</h3>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <span className="altur-badge badge-cyan">
             Canal 0: Llamante
           </span>

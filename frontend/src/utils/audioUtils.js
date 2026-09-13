@@ -1,16 +1,25 @@
 /**
- * AuraVoice Audio Utilities
- * Telephony-grade 8kHz Stereo 16-bit PCM Audio Processing & Base64 Encoder
- * Compliant with HackMTY26 Altur Challenge Specifications:
- * - Stereo WAV (Channel 0 = Caller, Channel 1 = Agent)
- * - 8,000 Hz sample rate
- * - 16-bit PCM
- * - Base64 encoding for POST /detect payload
+ * AuraVoice - Utilidades de audio.
+ *
+ * Procesamiento de audio de telefonía (8 kHz, estéreo, PCM 16-bit) para el
+ * reto de Tecnologías Altur:
+ *
+ * - WAV estéreo: Canal 0 = Llamante, Canal 1 = Agente.
+ * - Sample rate telefónico de 8,000 Hz.
+ * - Transmisión al backend como multipart/form-data en POST /detect
+ *   (el backend espera el WAV crudo bajo el campo `file`).
+ *
+ * También incluye helpers para inspeccionar WAV sin decodificarlos, el
+ * espectrograma (STFT) que se dibuja en el frontend y los clientes de API.
  */
+
+// ---------------------------------------------------------------------------
+// WAV encoder (8 kHz, estéreo, PCM 16-bit)
+// ---------------------------------------------------------------------------
 
 /**
  * Encodes an AudioBuffer into an 8kHz 16-bit Stereo PCM WAV ArrayBuffer
- * @param {AudioBuffer} audioBuffer 
+ * @param {AudioBuffer} audioBuffer
  * @returns {ArrayBuffer}
  */
 export function encodeStereoWav8kHz(audioBuffer) {
@@ -68,9 +77,13 @@ export function encodeStereoWav8kHz(audioBuffer) {
   return buffer;
 }
 
+// ---------------------------------------------------------------------------
+// Resampling (AudioBuffer del navegador -> 8 kHz estéreo)
+// ---------------------------------------------------------------------------
+
 /**
  * Resamples an arbitrary browser AudioBuffer down to 8000 Hz Stereo
- * @param {AudioBuffer} sourceBuffer 
+ * @param {AudioBuffer} sourceBuffer
  * @returns {Promise<AudioBuffer>}
  */
 export async function resampleTo8kHzStereo(sourceBuffer) {
@@ -103,41 +116,9 @@ export async function resampleTo8kHzStereo(sourceBuffer) {
   return await offlineCtx.startRendering();
 }
 
-/**
- * Converts ArrayBuffer to Base64 string
- * @param {ArrayBuffer} arrayBuffer 
- * @returns {string}
- */
-export function arrayBufferToBase64(arrayBuffer) {
-  let binary = '';
-  const bytes = new Uint8Array(arrayBuffer);
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return window.btoa(binary);
-}
-
-/**
- * Base64 to ArrayBuffer
- * @param {string} base64 
- * @returns {ArrayBuffer}
- */
-export function base64ToArrayBuffer(base64) {
-  const binaryString = window.atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes.buffer;
-}
-
-function writeString(view, offset, string) {
-  for (let i = 0; i < string.length; i++) {
-    view.setUint8(offset + i, string.charCodeAt(i));
-  }
-}
+// ---------------------------------------------------------------------------
+// Parsing de WAV (respeta el payload crudo, sin decodificar audio)
+// ---------------------------------------------------------------------------
 
 /**
  * Parses the RIFF/WAVE header of a WAV ArrayBuffer without decoding the payload.
@@ -163,7 +144,12 @@ export function inspectWavMetadata(arrayBuffer) {
 
     let offset = 12;
     while (offset + 8 <= arrayBuffer.byteLength) {
-      const id = String.fromCharCode(view.getUint8(offset), view.getUint8(offset + 1), view.getUint8(offset + 2), view.getUint8(offset + 3));
+      const id = String.fromCharCode(
+        view.getUint8(offset),
+        view.getUint8(offset + 1),
+        view.getUint8(offset + 2),
+        view.getUint8(offset + 3)
+      );
       const size = view.getUint32(offset + 4, true);
 
       if (id === 'fmt ') {
@@ -205,7 +191,10 @@ export function readWavPcmSamples(arrayBuffer, meta) {
   for (let i = 0; i < frames; i++) {
     const base = meta.dataOffset + i * bytesPerSample * meta.channels;
     channel0[i] = readPcmSample(view, base, meta);
-    channel1[i] = meta.channels > 1 ? readPcmSample(view, base + bytesPerSample, meta) : readPcmSample(view, base, meta);
+    channel1[i] =
+      meta.channels > 1
+        ? readPcmSample(view, base + bytesPerSample, meta)
+        : readPcmSample(view, base, meta);
   }
 
   return { channel0, channel1 };
@@ -223,15 +212,55 @@ function readPcmSample(view, offset, meta) {
     return view.getInt16(offset, true) / 32768;
   }
   if (bytes === 3) {
-    let v = view.getUint8(offset) | (view.getUint8(offset + 1) << 8) | (view.getUint8(offset + 2) << 16);
-    if (v & 0x800000) v -= 0x1000000;
-    return v / 8388608;
+    const v =
+      view.getUint8(offset) |
+      (view.getUint8(offset + 1) << 8) |
+      (view.getUint8(offset + 2) << 16);
+    return (v & 0x800000 ? v - 0x1000000 : v) / 8388608;
   }
   if (bytes === 4) {
     return view.getInt32(offset, true) / 2147483648;
   }
   return 0;
 }
+
+// ---------------------------------------------------------------------------
+// Codificación Base64
+// ---------------------------------------------------------------------------
+
+/**
+ * Converts ArrayBuffer to Base64 string
+ * @param {ArrayBuffer} arrayBuffer
+ * @returns {string}
+ */
+export function arrayBufferToBase64(arrayBuffer) {
+  let binary = '';
+  const bytes = new Uint8Array(arrayBuffer);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return window.btoa(binary);
+}
+
+/**
+ * Base64 to ArrayBuffer
+ * @param {string} base64
+ * @returns {ArrayBuffer}
+ */
+export function base64ToArrayBuffer(base64) {
+  const binaryString = window.atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+// ---------------------------------------------------------------------------
+// Formato de tamaños (para la UI)
+// ---------------------------------------------------------------------------
 
 /**
  * Human friendly byte size formatter (e.g. "24 KB")
@@ -243,7 +272,9 @@ export function formatBytes(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-// --- Spectrogram (Sliding-window STFT) --------------------------------
+// ---------------------------------------------------------------------------
+// Espectrograma (STFT con ventana deslizante)
+// ---------------------------------------------------------------------------
 
 /**
  * In-place radix-2 FFT. Requires re/im lengths to be a power of two.
@@ -352,6 +383,10 @@ export function computeSpectrogram(channelData, sampleRate = 8000, opts = {}) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Datos de demostración
+// ---------------------------------------------------------------------------
+
 /**
  * Generates synthetic mock call data for test demonstrations (Human or Deepfake)
  */
@@ -405,7 +440,7 @@ export function generateMockScenario(type = 'deepfake') {
         breathing_detected: false,
         semantic_hallucination: true,
       },
-      llm_conclusion: `🚨 ALERTA: Voz sintética detectada con 94.2% de certeza.
+      llm_conclusion: `ALERTA: Voz sintética detectada con 94.2% de certeza.
 Se encontró una firma acústica plana sin micro-respiraciones naturales. Al ser interrumpido por el agente, respondió con una latencia mecánica constante de 180ms. Se sugiere bloquear la llamada y pedir verificación biométrica adicional.`
     };
   } else {
@@ -426,11 +461,15 @@ Se encontró una firma acústica plana sin micro-respiraciones naturales. Al ser
         breathing_detected: true,
         semantic_hallucination: false,
       },
-      llm_conclusion: `✅ VERIFICADO: Voz humana auténtica confirmada (97.8% de confianza).
+      llm_conclusion: `VERIFICADO: Voz humana auténtica confirmada (97.8% de confianza).
 El tono presenta inflexiones orgánicas, respiración audible entre frases y un tiempo de vacilación natural de 420ms ante las preguntas del banco. El canal telefónico es seguro.`
     };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Clientes de API
+// ---------------------------------------------------------------------------
 
 /**
  * Calls the batch POST /detect endpoint.
@@ -461,7 +500,9 @@ export async function callDetectApi(baseUrl, base64Audio) {
 }
 
 /**
- * Calls the live streaming POST /detect_streaming endpoint
+ * Calls the live streaming POST /detect_streaming endpoint.
+ * Nota: el flujo en vivo real se hace por el WebSocket /ws/detect; este
+ * helper se conserva como fallback por si se requiere HTTP puro.
  */
 export async function callDetectStreamingApi(baseUrl, payload) {
   const url = `${baseUrl.replace(/\/+$/, '')}/detect_streaming`;
@@ -475,4 +516,3 @@ export async function callDetectStreamingApi(baseUrl, payload) {
   }
   return await response.json();
 }
-

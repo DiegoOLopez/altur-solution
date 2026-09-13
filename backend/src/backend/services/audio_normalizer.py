@@ -1,5 +1,11 @@
-# Este servicio es exclusivo del streaming
+"""
+Normalización de audio para el flujo de streaming (WebSocket /ws/detect).
 
+Convierte chunks de PCM 16-bit mono a 16 kHz:
+
+- 16 kHz -> pasa los samples sin modificar.
+- 8 kHz  -> hace resampling en streaming a 16 kHz.
+"""
 import numpy as np
 import soxr
 
@@ -53,11 +59,11 @@ class AudioNormalizer:
             dtype=np.int16,
         )
 
-        # Ya está en 16 kHz.
+        # Ya está en 16 kHz: se devuelve tal cual.
         if self.sample_rate == TARGET_SAMPLE_RATE:
             return audio_bytes
 
-        # 8 kHz -> 16 kHz
+        # 8 kHz -> 16 kHz.
         resampled = self._resampler.resample_chunk(samples)
 
         return resampled.astype(np.int16).tobytes()

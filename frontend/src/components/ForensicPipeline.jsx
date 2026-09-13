@@ -12,12 +12,11 @@ export default function ForensicPipeline({ title, steps, badge, live }) {
   const hasActive = (steps || []).some((s) => s.status === 'active');
 
   return (
-    <div className="avant-card" style={{
-      padding: '20px',
+    <div className="avant-card fx-card" style={{
+      padding: '18px 20px',
       display: 'flex',
       flexDirection: 'column',
-      gap: '14px',
-      background: '#fbfcfe'
+      gap: '14px'
     }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>

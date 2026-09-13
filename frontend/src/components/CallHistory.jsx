@@ -1,17 +1,15 @@
 import React from 'react';
-import { History, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { ShieldAlert, ShieldCheck } from 'lucide-react';
 
 export default function CallHistory({ history, onSelectHistoryItem }) {
   if (!history || history.length === 0) return null;
 
   return (
-    <div className="avant-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <History size={18} color="#0284c7" />
-          <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--altur-black)' }}>
-            Registro de Auditorías Telefónicas Recientes
-          </h3>
+    <div className="avant-card fx-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+        <div>
+          <span className="fx-kicker">Historial de auditorías</span>
+          <h3 className="fx-card-title">Registro de Auditorías Telefónicas Recientes</h3>
         </div>
         <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
           {history.length} llamadas analizadas

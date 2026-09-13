@@ -17,6 +17,7 @@ export default function StreamingCallSimulator({
   const audioContextRef = useRef(null);
   const workletRef = useRef(null);
 
+  // Abre el WebSocket /ws/detect del backend y devuelve la conexión.
   const connectWebSocket = () => {
     if (wsRef.current) {
       if (wsRef.current.readyState === WebSocket.OPEN) {
@@ -26,10 +27,7 @@ export default function StreamingCallSimulator({
       return Promise.reject(new Error("La conexión ya está iniciándose."));
     }
 
-    const wsUrl = `${apiBaseUrl.replace(
-      /^http/,
-      "ws"
-    )}/ws/detect`;
+    const wsUrl = `${apiBaseUrl.replace(/^http/, "ws")}/ws/detect`;
 
     const ws = new WebSocket(wsUrl);
 
@@ -39,77 +37,57 @@ export default function StreamingCallSimulator({
 
     return new Promise((resolve, reject) => {
       ws.onopen = () => {
-      console.log("WebSocket conectado");
-
-      setIsConnected(true);
+        setIsConnected(true);
         resolve(ws);
       };
 
-    ws.onmessage = (message) => {
-      if (typeof message.data !== "string") {
-        return;
-      }
-
-      try {
-        const data = JSON.parse(message.data);
-
-        console.log("Backend →", data);
-
-        switch (data.event) {
-          case "ready":
-            console.log("Audio listo:", data);
-            break;
-
-          case "chunk_processed":
-            break;
-
-          case "detection":
-            setDetection(data.result);
-            break;
-
-          case "error":
-            console.error(
-              "Backend error:",
-              data.message
-            );
-            break;
-
-          default:
-            console.log(
-              "Evento no manejado:",
-              data
-            );
+      ws.onmessage = (message) => {
+        if (typeof message.data !== "string") {
+          return;
         }
-      } catch (error) {
-        console.error(
-          "Respuesta inválida:",
-          error
-        );
-      }
-    };
 
-    ws.onerror = (error) => {
-      console.error(
-        "WebSocket error:",
-        error
-      );
-      wsRef.current = null;
-      reject(new Error("No se pudo conectar con el backend."));
-    };
+        try {
+          const data = JSON.parse(message.data);
 
-    ws.onclose = () => {
-      console.log(
-        "WebSocket desconectado"
-      );
+          switch (data.event) {
+            case "ready":
+              break;
 
-      wsRef.current = null;
+            case "chunk_processed":
+              break;
 
-      setIsConnected(false);
-      setIsRecording(false);
-    };
+            case "detection":
+              setDetection(data.result);
+              break;
+
+            case "error":
+              console.error("Backend error:", data.message);
+              break;
+
+            default:
+              break;
+          }
+        } catch (error) {
+          console.error("Respuesta inválida:", error);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        wsRef.current = null;
+        reject(new Error("No se pudo conectar con el backend."));
+      };
+
+      ws.onclose = () => {
+        wsRef.current = null;
+
+        setIsConnected(false);
+        setIsRecording(false);
+      };
     });
   };
 
+  // Inicia la captura del micrófono y la transmisión en vivo.
   const startRecording = async () => {
     if (isRecording || isStarting) {
       return;
@@ -119,36 +97,28 @@ export default function StreamingCallSimulator({
 
     try {
       const ws = await connectWebSocket();
-      const stream =
-        await navigator.mediaDevices.getUserMedia(
-          {
-            audio: {
-              channelCount: 1,
-              echoCancellation: true,
-              noiseSuppression: false,
-              autoGainControl: false,
-            },
-          }
-        );
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: false,
+          autoGainControl: false,
+        },
+      });
 
       streamRef.current = stream;
 
-      const audioContext =
-        new AudioContext({
-          sampleRate: 16000,
-        });
+      const audioContext = new AudioContext({
+        sampleRate: 16000,
+      });
 
-      audioContextRef.current =
-        audioContext;
+      audioContextRef.current = audioContext;
 
       await audioContext.resume();
 
-      const realSampleRate =
-        audioContext.sampleRate;
+      const realSampleRate = audioContext.sampleRate;
 
-      setSampleRate(
-        realSampleRate
-      );
+      setSampleRate(realSampleRate);
 
       /*
        * Primero enviamos al backend
@@ -156,8 +126,7 @@ export default function StreamingCallSimulator({
        */
       ws.send(
         JSON.stringify({
-          sample_rate:
-            realSampleRate,
+          sample_rate: realSampleRate,
           channels: 1,
           sample_width: 2,
         })
@@ -167,16 +136,12 @@ export default function StreamingCallSimulator({
         "/audio-processor.js"
       );
 
-      const source =
-        audioContext.createMediaStreamSource(
-          stream
-        );
+      const source = audioContext.createMediaStreamSource(stream);
 
-      const worklet =
-        new AudioWorkletNode(
-          audioContext,
-          "pcm-processor"
-        );
+      const worklet = new AudioWorkletNode(
+        audioContext,
+        "pcm-processor"
+      );
 
       workletRef.current = worklet;
 
@@ -184,46 +149,30 @@ export default function StreamingCallSimulator({
        * Cada mensaje contiene
        * PCM Int16.
        */
-      worklet.port.onmessage = (
-        event
-      ) => {
-        const pcmBuffer =
-          event.data;
+      worklet.port.onmessage = (event) => {
+        const pcmBuffer = event.data;
 
-        if (
-          ws.readyState !==
-          WebSocket.OPEN
-        ) {
+        if (ws.readyState !== WebSocket.OPEN) {
           return;
         }
 
         ws.send(pcmBuffer);
 
-        setChunksSent(
-          (prev) => prev + 1
-        );
+        setChunksSent((prev) => prev + 1);
       };
 
       source.connect(worklet);
 
       setIsRecording(true);
-
-      console.log(
-        "Micrófono iniciado:",
-        realSampleRate,
-        "Hz"
-      );
     } catch (error) {
-      console.error(
-        "No se pudo iniciar la grabación:",
-        error
-      );
+      console.error("No se pudo iniciar la grabación:", error);
       stop();
     } finally {
       setIsStarting(false);
     }
   };
 
+  // Detiene la captura, la conexión y el contexto de audio.
   const stop = () => {
     if (workletRef.current) {
       workletRef.current.disconnect();
@@ -231,28 +180,20 @@ export default function StreamingCallSimulator({
     }
 
     if (streamRef.current) {
-      streamRef.current
-        .getTracks()
-        .forEach((track) => {
-          track.stop();
-        });
+      streamRef.current.getTracks().forEach((track) => {
+        track.stop();
+      });
 
       streamRef.current = null;
     }
 
     if (audioContextRef.current) {
-      audioContextRef.current
-        .close()
-        .catch(() => {});
+      audioContextRef.current.close().catch(() => {});
 
       audioContextRef.current = null;
     }
 
-    if (
-      wsRef.current &&
-      wsRef.current.readyState ===
-        WebSocket.OPEN
-    ) {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.close();
     }
 
@@ -265,6 +206,7 @@ export default function StreamingCallSimulator({
     setDetection(null);
   };
 
+  // Al desmontar el componente se limpian todos los recursos.
   useEffect(() => {
     return () => {
       stop();
@@ -339,7 +281,7 @@ export default function StreamingCallSimulator({
               {detection ? "Actualizado" : "Esperando"}
             </span>
           </div>
-          
+
           {!detection ? (
             <div className="flex-1 flex items-center justify-center text-center py-4">
               <p className="text-gray-500 text-sm leading-relaxed">La primera inferencia aparecerá durante la grabación.</p>

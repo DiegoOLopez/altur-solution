@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { UploadCloud, FileAudio, ArrowRight } from 'lucide-react';
+import { UploadCloud, ArrowRight } from 'lucide-react';
 
 import {
   encodeStereoWav8kHz,
@@ -225,24 +225,14 @@ export default function BatchInput({
   });
 
   return (
-    <div className="avant-card" style={{ padding: '28px', display: 'flex', flexDirection: 'column', gap: '22px' }}>
+    <div className="avant-card fx-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Title & Description */}
       <div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '8px',
-              background: 'var(--accent-cyan-light)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <FileAudio size={18} color="#0284c7" />
-            </div>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--altur-black)', letterSpacing: '-0.02em' }}>
-              Audio Forensics
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '6px', gap: '10px' }}>
+          <div>
+            <span className="fx-kicker">POST /detect · Entrada</span>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--altur-black)', letterSpacing: '-0.02em', marginTop: '4px' }}>
+              Análisis Forense de Audio
             </h2>
           </div>
           <span className="altur-badge badge-cyan font-mono">

@@ -952,3 +952,114 @@ body {
   .streaming-call-simulator > header { align-items: flex-start; flex-direction: column; margin-bottom: 32px; }
   .streaming-call-simulator > div { grid-template-columns: 1fr; }
 }
+
+/* ── Análisis Forense de Audio · /detect ─────────────────────────────
+   Lenguaje visual compartido con ReviewHub y Live Call:
+   tarjetas planas, kicker en mayúsculas, jerarquía editorial y
+   dashboard en grilla responsiva. */
+.forensic-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.fx-intro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.fx-intro h1 {
+  margin: 8px 0 6px;
+  color: var(--altur-black);
+  font-size: clamp(1.7rem, 3vw, 2.35rem);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+}
+
+.fx-intro p {
+  max-width: 560px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.fx-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.fx-kicker::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.14);
+}
+
+.fx-card {
+  background: #ffffff;
+  border: 1px solid #e6ebf0;
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 10px 26px -16px rgba(15, 23, 42, 0.06);
+}
+
+.fx-card:hover {
+  box-shadow: 0 2px 3px rgba(15, 23, 42, 0.04), 0 14px 34px -16px rgba(15, 23, 42, 0.1);
+}
+
+.fx-card-title {
+  margin: 4px 0 0;
+  color: var(--altur-black);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.fx-bento {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas:
+    'input  verdict'
+    'wave   signals'
+    'spec   timing';
+  gap: 16px;
+  align-items: start;
+}
+
+.fx-bento > .fx-cell-input   { grid-area: input;   min-width: 0; }
+.fx-bento > .fx-cell-verdict { grid-area: verdict; min-width: 0; }
+.fx-bento > .fx-cell-wave    { grid-area: wave;    min-width: 0; }
+.fx-bento > .fx-cell-signals { grid-area: signals; min-width: 0; }
+.fx-bento > .fx-cell-spec    { grid-area: spec;    min-width: 0; }
+.fx-bento > .fx-cell-timing  { grid-area: timing;  min-width: 0; }
+
+@media (max-width: 1080px) {
+  .fx-bento {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'input'
+      'verdict'
+      'wave'
+      'spec'
+      'signals'
+      'timing';
+  }
+}
+
+@media (max-width: 480px) {
+  .fx-intro { align-items: flex-start; flex-direction: column; }
+}
