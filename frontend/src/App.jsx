@@ -36,7 +36,7 @@ export default function App() {
     setVerdictFor(null);
   };
 
-  // Análisis batch: llama a POST /detect con el WAV seleccionado.
+  // Análisis batch: llama a POST /detect_wav con el WAV seleccionado.
   const handleRunBatchAnalysis = async () => {
     if (!activeAudio) return;
 
@@ -93,7 +93,7 @@ export default function App() {
       );
     } catch (err) {
       console.error(
-        'Error calling POST /detect:',
+        'Error calling POST /detect_wav:',
         err
       );
 
@@ -231,7 +231,7 @@ La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosó
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <span className="altur-badge badge-cyan font-mono">POST /detect</span>
+                  <span className="altur-badge badge-cyan font-mono">POST /detect_wav</span>
                 </div>
               </header>
 
@@ -342,7 +342,7 @@ La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosó
         AuraVoice • Desarrollado para el reto de Tecnologías Altur en
         HackMTY26 • Soporte para{' '}
         <code style={{ color: '#00f2fe' }}>
-          POST /detect
+          POST /detect_wav
         </code>{' '}
         y{' '}
         <code style={{ color: '#ff3366' }}>

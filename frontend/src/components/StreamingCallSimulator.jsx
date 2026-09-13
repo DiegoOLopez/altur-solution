@@ -217,102 +217,103 @@ export default function StreamingCallSimulator({
   const isSynthetic = detection?.is_synthetic ?? null;
 
   return (
-    <section className="streaming-call-simulator bg-white text-gray-900 font-sans py-20 px-4 md:px-8 max-w-6xl mx-auto">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
+    <div className="review-hub">
+      <section className="review-intro">
         <div>
-          <span className="text-gray-500 text-sm font-semibold tracking-wider uppercase mb-2 block">STREAMING CALL SIMULATOR</span>
-          <h2 className="font-serif text-4xl md:text-5xl font-bold">Centro de monitoreo</h2>
+          <p className="review-eyebrow"><span />Live Call Simulator</p>
+          <h1>Centro de<br /><em>monitoreo.</em></h1>
+          <p className="review-intro-copy">Inicia una llamada simulada para probar el detector de fraude en tiempo real.</p>
         </div>
-        <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium ${isRecording ? "bg-green-50 text-green-700 ring-1 ring-green-600/20" : isStarting ? "bg-amber-50 text-amber-700 ring-1 ring-amber-600/20" : "bg-gray-100 text-gray-600"}`}>
-          <span className={`w-2 h-2 rounded-full ${isRecording ? "bg-green-500 animate-pulse" : isStarting ? "bg-amber-500 animate-pulse" : "bg-gray-400"}`} />
-          {isRecording ? "En vivo" : isStarting ? "Preparando" : "En espera"}
-        </span>
-      </header>
+        <button 
+          className="review-primary-button" 
+          onClick={isRecording ? stop : startRecording}
+          disabled={isStarting}
+        >
+          {isRecording ? <CircleStop size={18} /> : <Mic size={18} />}
+          {isStarting ? "Conectando..." : isRecording ? "Detener grabación" : "Empezar a grabar"}
+        </button>
+      </section>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-        <div className={`bg-gray-50 rounded-2xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col justify-between ${isRecording ? "ring-2 ring-green-500/20" : ""}`}>
-          <div>
-            <div className="flex items-center gap-2 text-gray-500 text-sm font-medium mb-4 uppercase tracking-wide"><Mic size={16} /> Captura de audio</div>
-            <div className="mb-8 flex flex-col gap-1">
-              <strong className="text-gray-900 text-lg">{isRecording ? "Transmisión activa" : "Micrófono listo"}</strong>
-              <span className="text-gray-500 text-sm">{isRecording ? "Enviando señal al detector" : "Inicia una llamada para analizarla"}</span>
+      <div className="sim-bento-grid">
+        <section className="sim-card" style={{ gridArea: 'capture' }}>
+          <div className="sim-card-header"><Mic size={16} /> Captura de audio</div>
+          <div className="sim-card-content" style={{ textAlign: 'center', justifyContent: 'center' }}>
+            <div className={`sim-status ${isRecording ? 'connected' : 'disconnected'}`}>
+              <Mic size={24} className={isRecording ? 'animate-pulse' : ''} />
             </div>
+            <p className="sim-value-large">{isRecording ? "Transmisión activa" : "Micrófono listo"}</p>
+            <p className="sim-value-label">{isRecording ? "Enviando señal al detector" : "Inicia una llamada para analizarla"}</p>
           </div>
-          <button
-            className={`w-full flex items-center justify-center gap-2 rounded-full px-6 py-3 font-medium transition-all ${isRecording ? "bg-gray-200 text-gray-900 hover:bg-gray-300" : "bg-black text-white hover:bg-gray-800"}`}
-            onClick={isRecording ? stop : startRecording}
-            disabled={isStarting}
-          >
-            {isRecording ? <CircleStop size={18} /> : <Mic size={18} />}
-            {isStarting ? "Conectando..." : isRecording ? "Detener grabación" : "Empezar a grabar"}
-          </button>
-        </div>
+        </section>
 
-        <div className="bg-gray-50 rounded-2xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col">
-          <div className="flex items-center gap-2 text-gray-500 text-sm font-medium mb-4 uppercase tracking-wide"><Server size={16} /> Backend</div>
-          <div className="flex-1 flex flex-col justify-center items-center text-center py-4">
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${isConnected ? "bg-green-100 text-green-600" : "bg-gray-200 text-gray-400"}`}>
+        <section className="sim-card" style={{ gridArea: 'backend' }}>
+          <div className="sim-card-header"><Server size={16} /> Backend</div>
+          <div className="sim-card-content" style={{ textAlign: 'center', justifyContent: 'center' }}>
+            <div className={`sim-status ${isConnected ? 'connected' : 'disconnected'}`}>
               <Wifi size={24} />
             </div>
-            <strong className="text-gray-900 text-lg mb-1">{isConnected ? "Conectado" : "Desconectado"}</strong>
-            <span className="text-gray-500 text-sm">WebSocket /detect</span>
+            <p className="sim-value-large">{isConnected ? "Conectado" : "Desconectado"}</p>
+            <p className="sim-value-label">WebSocket /detect</p>
           </div>
-        </div>
+        </section>
 
-        <div className="bg-gray-50 rounded-2xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col">
-          <div className="flex items-center gap-2 text-gray-500 text-sm font-medium mb-4 uppercase tracking-wide"><Radio size={16} /> Señal Entrante</div>
-          <div className="flex-1 flex flex-col justify-center py-4">
-            <div className="flex items-end justify-center gap-1.5 h-16 mb-6 opacity-60" aria-hidden="true">
-              {[12, 24, 38, 20, 50, 29, 42, 17, 31, 46, 23, 36, 15].map((height, index) => (
-                <span key={index} className={`w-1.5 rounded-t-sm ${isRecording ? "bg-green-500 animate-pulse" : "bg-gray-300"}`} style={{ height: `${height}px`, animationDelay: `${index * 0.1}s` }} />
+        <section className="sim-card" style={{ gridArea: 'signal' }}>
+          <div className="sim-card-header"><Radio size={16} /> Señal Entrante</div>
+          <div className="sim-card-content" style={{ justifyContent: 'center' }}>
+            <div className="sim-wave-bars" aria-hidden="true">
+              {[12, 24, 38, 20, 48, 29, 42, 17, 31, 46].map((height, i) => (
+                <span 
+                  key={i} 
+                  className={isRecording ? 'active' : ''}
+                  style={{ height: `${height}px`, animationDelay: `${i * 0.1}s` }} 
+                />
               ))}
             </div>
-            <div className="flex flex-col text-center">
-              <strong className="text-gray-900 text-lg mb-1">{sampleRate ?? "-"} Hz</strong>
-              <span className="text-gray-500 text-sm">{chunksSent} chunks enviados</span>
-            </div>
+            <p className="sim-value-large">{sampleRate ?? "-"} Hz</p>
+            <p className="sim-value-label">{chunksSent} chunks enviados</p>
           </div>
-        </div>
+        </section>
 
-        <div className="bg-gray-50 rounded-2xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2 text-gray-500 text-sm font-medium uppercase tracking-wide"><Activity size={16} /> Detección</div>
-            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${detection ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-600"}`}>
+        <section className="sim-card" style={{ gridArea: 'detection' }}>
+          <div className="sim-card-header" style={{ justifyContent: 'space-between', marginBottom: '16px' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Activity size={16} /> Detección</span>
+            <span className={`sim-detection-badge ${detection ? 'updated' : 'waiting'}`}>
               {detection ? "Actualizado" : "Esperando"}
             </span>
           </div>
-
+          
           {!detection ? (
-            <div className="flex-1 flex items-center justify-center text-center py-4">
-              <p className="text-gray-500 text-sm leading-relaxed">La primera inferencia aparecerá durante la grabación.</p>
+            <div className="sim-card-content" style={{ justifyContent: 'center', alignItems: 'center' }}>
+               <p className="sim-value-label">La primera inferencia aparecerá durante la grabación.</p>
             </div>
           ) : (
-            <div className="flex-1 flex flex-col justify-center">
-              <div className={`text-center py-3 px-4 rounded-xl mb-6 font-medium text-lg ${isSynthetic ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>
+            <div className="sim-card-content">
+              <div className={`sim-verdict-badge ${isSynthetic ? 'synthetic' : 'human'}`}>
                 {isSynthetic ? "Voz sintética" : "Voz humana"}
               </div>
-              <div className="grid grid-cols-2 gap-y-4 gap-x-2 text-sm">
-                <div className="flex flex-col">
-                  <span className="text-gray-500 mb-0.5">Confianza</span>
-                  <strong className="text-gray-900">{confidence !== null ? `${(confidence * 100).toFixed(2)}%` : "-"}</strong>
+              
+              <div className="sim-metrics-grid">
+                <div className="sim-metric">
+                  <span className="sim-metric-label">Confianza</span>
+                  <span className="sim-metric-value">{confidence !== null ? `${(confidence * 100).toFixed(2)}%` : "-"}</span>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-gray-500 mb-0.5">Tiempo</span>
-                  <strong className="text-gray-900">{detection.t}s</strong>
+                <div className="sim-metric">
+                  <span className="sim-metric-label">Tiempo</span>
+                  <span className="sim-metric-value">{detection.t}s</span>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-gray-500 mb-0.5">Segmentos</span>
-                  <strong className="text-gray-900">{detection.n_acoustic_segments ?? detection.segments_analyzed ?? "-"}</strong>
+                <div className="sim-metric">
+                  <span className="sim-metric-label">Segmentos</span>
+                  <span className="sim-metric-value">{detection.n_acoustic_segments ?? detection.segments_analyzed ?? "-"}</span>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-gray-500 mb-0.5">Score</span>
-                  <strong className="text-gray-900">{detection.score_total ?? "-"}</strong>
+                <div className="sim-metric">
+                  <span className="sim-metric-label">Score</span>
+                  <span className="sim-metric-value">{detection.score_total ?? "-"}</span>
                 </div>
               </div>
             </div>
           )}
-        </div>
+        </section>
       </div>
-    </section>
+    </div>
   );
 }

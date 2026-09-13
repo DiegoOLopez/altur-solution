@@ -17,6 +17,12 @@
 // WAV encoder (8 kHz, estéreo, PCM 16-bit)
 // ---------------------------------------------------------------------------
 
+function writeString(view, offset, value) {
+  for (let index = 0; index < value.length; index += 1) {
+    view.setUint8(offset + index, value.charCodeAt(index));
+  }
+}
+
 /**
  * Encodes an AudioBuffer into an 8kHz 16-bit Stereo PCM WAV ArrayBuffer
  * @param {AudioBuffer} audioBuffer
@@ -472,12 +478,12 @@ El tono presenta inflexiones orgánicas, respiración audible entre frases y un 
 // ---------------------------------------------------------------------------
 
 /**
- * Calls the batch POST /detect endpoint.
+ * Calls the frontend WAV POST /detect_wav endpoint.
  * Sends the raw WAV as multipart/form-data under the field `file`,
  * matching the FastAPI contract (UploadFile `file`).
  */
 export async function callDetectApi(baseUrl, base64Audio) {
-  const url = `${baseUrl.replace(/\/+$/, '')}/detect`;
+  const url = `${baseUrl.replace(/\/+$/, '')}/detect_wav`;
 
   const fileBytes = base64ToArrayBuffer(base64Audio);
   if (!fileBytes || fileBytes.byteLength < 44) {
@@ -494,7 +500,7 @@ export async function callDetectApi(baseUrl, base64Audio) {
     body: formData
   });
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status} from /detect`);
+    throw new Error(`HTTP ${response.status} from /detect_wav`);
   }
   return await response.json();
 }
