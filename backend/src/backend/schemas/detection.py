@@ -1,31 +1,33 @@
+"""
+Schemas Pydantic de detección.
+
+Define el modelo de respuesta ``DetectionResponse`` que retornan
+los endpoints POST /detect, POST /detect_wav y el WebSocket /ws/detect.
+"""
 from pydantic import BaseModel
 
 
 class DetectionResponse(BaseModel):
     """
-    Resultado de la detección de voz sintética.
+    Respuesta del detector de voz sintética.
+
+    Atributos:
+        is_synthetic          : True si la voz fue clasificada como sintética.
+        confidence            : Nivel de confianza del detector (0.0 a 1.0).
+        score_total           : Score total acumulado (LLR acústico + comportamental).
+        llr_acoustic_cum      : Log-likelihood ratio acústico acumulado.
+        llr_behavioral_cum    : Log-likelihood ratio comportamental acumulado.
+        n_acoustic_segments   : Cantidad de segmentos acústicos analizados.
+        n_behavioral_events   : Cantidad de eventos comportamentales detectados.
+        eta                   : Umbral de decisión del clasificador.
+        message               : Mensaje descriptivo del resultado.
     """
-
-    # Resultado principal del detector
     is_synthetic: bool
-
-    # Confianza de la clasificación
     confidence: float
-
-    # Score acumulado del modelo
     score_total: float
-
-    # Evidencia acústica acumulada
     llr_acoustic_cum: float
-
-    # Evidencia comportamental acumulada
     llr_behavioral_cum: float
-
-    # Cantidad de segmentos acústicos analizados
     n_acoustic_segments: int
-
-    # Cantidad de eventos comportamentales analizados
     n_behavioral_events: int
-
-    # Umbral utilizado para tomar la decisión
     eta: float
+    message: str

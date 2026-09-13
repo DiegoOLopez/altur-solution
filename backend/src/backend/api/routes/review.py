@@ -5,11 +5,20 @@ Permiten a un humano (o al flujo de segundo filtro) consultar las
 grabaciones persistidas, reproducirlas y clasificarlas. Cada grabación
 tiene un estado (pendiente, revisado o eliminado) que alimenta tanto el
 Review Hub del frontend como el dataset de entrenamiento del modelo.
+
+Endpoints:
+    GET    /review/db/health                         — Health check de la BD.
+    GET    /review/audios                            — Lista de grabaciones.
+    GET    /review/stats                             — Conteos de pendientes/revisados.
+    GET    /review/audios/{audio_id}/stream           — Streaming del audio desde MinIO.
+    PATCH  /review/audios/{audio_id}/classification   — Clasificar audio como sintético/real.
+    DELETE /review/audios/{audio_id}                  — Eliminación lógica.
 """
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
+from minio import Minio
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
@@ -31,8 +40,15 @@ router = APIRouter(
 
 def serialize_audio(audio: Audio) -> AudioReviewResponse:
     """
-    Convierte un registro ``Audio`` en la representación que consume el
-    frontend, incluyendo la URL relativa para reproducir la grabación.
+    Convierte un registro ORM ``Audio`` en la representación Pydantic
+    que consume el frontend, incluyendo la URL relativa para reproducir
+    la grabación vía streaming desde MinIO.
+
+    Args:
+        audio: Instancia del modelo SQLAlchemy Audio.
+
+    Returns:
+        AudioReviewResponse listo para serializar como JSON.
     """
     return AudioReviewResponse(
         id=audio.id,
@@ -54,6 +70,12 @@ def serialize_audio(audio: Audio) -> AudioReviewResponse:
 def database_health(db: Session = Depends(get_db)):
     """
     Health check: verifica que la conexión a MySQL responde (SELECT 1).
+
+    Returns:
+        JSON con status "ok" si la BD responde.
+
+    Raises:
+        HTTPException 503 si la conexión falla.
     """
     try:
         db.execute(text("SELECT 1"))
@@ -74,6 +96,13 @@ def list_audios(
 ):
     """
     Lista las grabaciones, ordenadas de la más reciente a la más antigua.
+
+    Filtros opcionales:
+        status:          Filtrar por estado específico (revisado, no_revisado, deleted).
+        include_deleted: Si es True, incluye audios eliminados (por defecto False).
+
+    Returns:
+        Lista de AudioReviewResponse.
     """
     query = db.query(Audio)
     if status is not None:
@@ -91,6 +120,9 @@ def list_audios(
 def review_stats(db: Session = Depends(get_db)):
     """
     Resume las grabaciones pendientes y clasificadas del Review Hub.
+
+    Returns:
+        JSON con pending, reviewed y total.
     """
     pending = db.query(func.count(Audio.id)).filter(
         Audio.status == AudioStatus.NO_REVISADO
@@ -108,7 +140,18 @@ def review_stats(db: Session = Depends(get_db)):
 
 def get_audio_or_404(audio_id: int, db: Session) -> Audio:
     """
-    Devuelve la grabación por id, o HTTP 404 si no existe o fue eliminada.
+    Busca una grabación por su ID. Retorna HTTP 404 si no existe
+    o si fue marcada como eliminada.
+
+    Args:
+        audio_id: ID numérico de la grabación.
+        db:       Sesión de base de datos.
+
+    Returns:
+        Instancia del modelo Audio.
+
+    Raises:
+        HTTPException 404 si el audio no existe o fue eliminado.
     """
     audio = db.query(Audio).filter(Audio.id == audio_id).first()
     if audio is None or audio.status == AudioStatus.DELETED:
@@ -116,31 +159,51 @@ def get_audio_or_404(audio_id: int, db: Session) -> Audio:
     return audio
 
 
-from fastapi.responses import StreamingResponse
-from minio import Minio
+# ============================================================
+# Cliente MinIO para streaming de audio
+# ============================================================
 
-# Configuración del Cliente MinIO (Igual que en websocket.py)
+# Configuración del cliente MinIO.
+# Las credenciales y el endpoint corresponden al entorno de desarrollo
+# definido en docker-compose.yml.
 minio_client = Minio(
     "localhost:9000",
     access_key="admin",
     secret_key="supersecretpassword",
     secure=False
 )
+
+# Nombre del bucket donde se almacenan las grabaciones.
 BUCKET_NAME = "grabaciones"
+
 
 @router.get("/audios/{audio_id}/stream")
 def stream_audio(audio_id: int, db: Session = Depends(get_db)):
     """
-    Sirve la grabación guardada localmente. Valida que la ``storage_key``
-    apunte dentro del directorio de audio para evitar path traversal.
+    Sirve la grabación guardada en MinIO como respuesta de streaming.
+
+    Descarga el archivo WAV del bucket de MinIO usando la clave
+    ``storage_key`` del registro en la BD y lo envía en chunks al
+    cliente para evitar cargar todo el archivo en memoria.
+
+    Args:
+        audio_id: ID numérico de la grabación.
+        db:       Sesión de base de datos.
+
+    Returns:
+        StreamingResponse con content-type audio/wav.
+
+    Raises:
+        HTTPException 404 si el audio no existe en MinIO.
     """
     audio = get_audio_or_404(audio_id, db)
-    
+
     try:
-        # Obtenemos el objeto (audio) desde MinIO usando el storage_key
+        # Obtener el objeto (audio) desde MinIO usando el storage_key.
         response = minio_client.get_object(BUCKET_NAME, audio.storage_key)
-        
-        # Función generadora para leer en chunks y hacer streaming eficiente
+
+        # Función generadora para leer en chunks de 32 KB
+        # y hacer streaming eficiente sin cargar todo en RAM.
         def iterfile():
             try:
                 for chunk in response.stream(32 * 1024):
@@ -148,9 +211,9 @@ def stream_audio(audio_id: int, db: Session = Depends(get_db)):
             finally:
                 response.close()
                 response.release_conn()
-                
+
         return StreamingResponse(
-            iterfile(), 
+            iterfile(),
             media_type="audio/wav"
         )
     except Exception as e:
@@ -169,6 +232,18 @@ def classify_audio(
 ):
     """
     Marca una grabación como sintética o real y la pasa a estado revisado.
+
+    Este endpoint alimenta el dataset de entrenamiento: cada audio
+    clasificado por un humano puede usarse posteriormente para
+    reentrenar el modelo vía POST /review/train.
+
+    Args:
+        audio_id: ID numérico de la grabación.
+        payload:  AudioClassificationRequest con el valor "synthetic" o "real".
+        db:       Sesión de base de datos.
+
+    Returns:
+        AudioMutationResponse con mensaje de éxito y el audio actualizado.
     """
     audio = get_audio_or_404(audio_id, db)
     audio.is_synthetic = payload.classification == "synthetic"
@@ -188,8 +263,15 @@ def classify_audio(
 )
 def delete_audio(audio_id: int, db: Session = Depends(get_db)):
     """
-    Eliminación lógica: marca la grabación como borrada sin removerla del
-    bucket ni del disco.
+    Eliminación lógica: marca la grabación como borrada sin removerla
+    del bucket de MinIO ni del disco.
+
+    Args:
+        audio_id: ID numérico de la grabación.
+        db:       Sesión de base de datos.
+
+    Returns:
+        AudioMutationResponse con mensaje de confirmación.
     """
     audio = get_audio_or_404(audio_id, db)
     audio.status = AudioStatus.DELETED

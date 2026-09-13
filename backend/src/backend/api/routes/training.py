@@ -1,14 +1,24 @@
 """
 Endpoint de reentrenamiento del modelo.
 
-Flujo:
-  1. Frontend manda POST /review/train con el nombre del nuevo modelo
-  2. Se consultan los audios clasificados (status='revisado') de MySQL
-  3. Se descargan los WAVs desde MinIO
-  4. Se ejecuta el pipeline completo de fit_densities (reentrenamiento de 0)
-  5. Se guarda el nuevo .joblib en MinIO
-  6. Se registra el modelo en la tabla trained_models
-  7. Se responde con las métricas del entrenamiento
+Flujo completo:
+  1. Frontend manda POST /review/train con el nombre del nuevo modelo.
+  2. Se consultan los audios clasificados (status='revisado') de MySQL.
+  3. Se descargan los WAVs desde MinIO.
+  4. Se extraen features con Wav2Vec2 (capa oculta 4, promedio temporal).
+  5. Se entrena un clasificador LogisticRegression.
+  6. Se guarda el nuevo .joblib en MinIO.
+  7. Se registra el modelo en la tabla trained_models.
+  8. Se responde con las métricas del entrenamiento.
+
+El entrenamiento se ejecuta en un hilo separado (ThreadPoolExecutor)
+para no bloquear el event loop de FastAPI. El frontend puede consultar
+el progreso en tiempo real con GET /review/train/status.
+
+Endpoints:
+    POST /review/train         — Iniciar reentrenamiento (202 Accepted).
+    GET  /review/train/status   — Consultar progreso del entrenamiento.
+    POST /review/train/cancel   — Cancelar un entrenamiento en curso.
 """
 import io
 import json
@@ -32,8 +42,11 @@ from backend.models.audio import Audio, AudioStatus
 from backend.models.trained_model import TrainedModel, ModelStatus
 
 # ==========================================================
-# Asegurarnos de que el detector esté en el path
+# Configuración del path al módulo detector
 # ==========================================================
+# El código del detector original se encuentra en la carpeta
+# ``detector/`` en la raíz del repositorio. Se agrega al sys.path
+# para poder importar sus módulos sin instalarlo como paquete.
 DETECTOR_ROOT = Path(__file__).resolve().parents[5] / "detector"
 if str(DETECTOR_ROOT) not in sys.path:
     sys.path.insert(0, str(DETECTOR_ROOT))
@@ -46,32 +59,44 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
 
 # ==========================================================
-# MinIO
+# Cliente MinIO para acceso al almacenamiento de objetos
 # ==========================================================
+# Las credenciales corresponden al entorno de desarrollo
+# definido en docker-compose.yml.
 minio_client = Minio(
     "localhost:9000",
     access_key="admin",
     secret_key="supersecretpassword",
     secure=False,
 )
+
+# Nombre del bucket donde se almacenan grabaciones y modelos.
 BUCKET_NAME = "grabaciones"
 
 # ==========================================================
-# Router
+# Router y executor para entrenamiento en background
 # ==========================================================
 router = APIRouter(
     prefix="/review",
     tags=["Training"],
 )
 
+# ThreadPoolExecutor con un solo worker para asegurar que solo
+# se ejecute un entrenamiento a la vez.
 training_executor = ThreadPoolExecutor(max_workers=1)
 
 
+# ==========================================================
+# Schemas de request/response para el endpoint de entrenamiento
+# ==========================================================
+
 class TrainRequest(BaseModel):
+    """Cuerpo de la petición para iniciar un reentrenamiento."""
     model_name: str
 
 
 class TrainResponse(BaseModel):
+    """Respuesta completa tras finalizar un reentrenamiento exitoso."""
     message: str
     model_id: int
     model_ref: str
@@ -86,12 +111,14 @@ class TrainResponse(BaseModel):
 
 
 class TrainStartResponse(BaseModel):
+    """Respuesta inmediata (HTTP 202) al iniciar el entrenamiento."""
     message: str
     model_name: str
     status: str
 
 
 class TrainStatusResponse(BaseModel):
+    """Estado actual del entrenamiento (usado por el frontend para polling)."""
     model_id: int | None
     model_name: str | None
     status: str
@@ -104,7 +131,21 @@ class TrainStatusResponse(BaseModel):
     error: str | None = None
 
 
+# ==========================================================
+# Funciones auxiliares
+# ==========================================================
+
 def serialize_training_status(model: TrainedModel | None) -> TrainStatusResponse:
+    """
+    Convierte un registro de TrainedModel en la representación
+    que consume el frontend para mostrar el progreso del entrenamiento.
+
+    Args:
+        model: Instancia del modelo ORM, o None si no hay entrenamiento.
+
+    Returns:
+        TrainStatusResponse con el estado actual.
+    """
     if model is None:
         return TrainStatusResponse(
             model_id=None,
@@ -116,6 +157,7 @@ def serialize_training_status(model: TrainedModel | None) -> TrainStatusResponse
             n_samples_synthetic=0,
         )
 
+    # Parsear el reporte JSON almacenado en la BD.
     report = json.loads(model.train_report or "{}")
     default_step = (
         "Entrenamiento completado"
@@ -137,17 +179,53 @@ def serialize_training_status(model: TrainedModel | None) -> TrainStatusResponse
 
 
 def update_training_progress(db: Session, model: TrainedModel, progress: int, step: str):
+    """
+    Actualiza el progreso del entrenamiento en la BD para que
+    el frontend pueda consultar el estado en tiempo real.
+
+    Args:
+        db:       Sesión de base de datos.
+        model:    Instancia del modelo ORM.
+        progress: Porcentaje de progreso (0-100).
+        step:     Descripción textual del paso actual.
+    """
     model.train_report = json.dumps({"progress": progress, "step": step})
     db.commit()
 
 
 def training_was_cancelled(db: Session, model_id: int) -> bool:
+    """
+    Verifica si el entrenamiento fue cancelado por el usuario.
+
+    Se consulta el status del modelo en la BD; si fue marcado como
+    ELIMINADO, el hilo de entrenamiento debe detenerse.
+
+    Args:
+        db:       Sesión de base de datos.
+        model_id: ID del modelo en entrenamiento.
+
+    Returns:
+        True si el entrenamiento fue cancelado.
+    """
     status = db.query(TrainedModel.status).filter(TrainedModel.id == model_id).scalar()
     return status == ModelStatus.ELIMINADO
 
 
+# ==========================================================
+# Endpoints
+# ==========================================================
+
 @router.get("/train/status", response_model=TrainStatusResponse)
 def training_status(db: Session = Depends(get_db)):
+    """
+    Consulta el estado del entrenamiento más reciente.
+
+    El frontend hace polling a este endpoint para actualizar la barra
+    de progreso y el paso actual del reentrenamiento.
+
+    Returns:
+        TrainStatusResponse con el estado del último modelo.
+    """
     model = (
         db.query(TrainedModel)
         .filter(TrainedModel.status.in_([
@@ -163,6 +241,18 @@ def training_status(db: Session = Depends(get_db)):
 
 @router.post("/train/cancel", response_model=TrainStatusResponse)
 def cancel_training(db: Session = Depends(get_db)):
+    """
+    Cancela un entrenamiento en curso marcando el modelo como ELIMINADO.
+
+    El hilo de entrenamiento verifica periódicamente si fue cancelado
+    y se detiene cuando detecta el cambio de status.
+
+    Returns:
+        TrainStatusResponse con el estado actualizado.
+
+    Raises:
+        HTTPException 404 si no hay un entrenamiento activo.
+    """
     model = (
         db.query(TrainedModel)
         .filter(TrainedModel.status == ModelStatus.TRAINING)
@@ -172,6 +262,7 @@ def cancel_training(db: Session = Depends(get_db)):
     if model is None:
         raise HTTPException(status_code=404, detail="No hay un entrenamiento activo.")
 
+    # Marcar como cancelado y guardar el motivo en el reporte.
     report = json.loads(model.train_report or "{}")
     report["step"] = "Entrenamiento cancelado"
     report["error"] = "Cancelado por el usuario."
@@ -183,6 +274,15 @@ def cancel_training(db: Session = Depends(get_db)):
 
 
 def run_training_in_thread(payload: TrainRequest):
+    """
+    Wrapper para ejecutar el entrenamiento en un hilo separado.
+
+    Crea su propia sesión de BD (no puede reutilizar la de FastAPI
+    porque corre en un thread distinto) y la cierra al terminar.
+
+    Args:
+        payload: TrainRequest con el nombre del modelo a entrenar.
+    """
     db = SessionLocal()
     try:
         train_model_job(payload, db)
@@ -190,8 +290,20 @@ def run_training_in_thread(payload: TrainRequest):
         db.close()
 
 
+# ==========================================================
+# Funciones de procesamiento de audio y features
+# ==========================================================
+
 def download_wav_from_minio(storage_key: str) -> bytes:
-    """Descarga un archivo WAV de MinIO y regresa los bytes."""
+    """
+    Descarga un archivo WAV de MinIO y regresa los bytes crudos.
+
+    Args:
+        storage_key: Clave del objeto en el bucket de MinIO.
+
+    Returns:
+        Bytes del archivo WAV completo.
+    """
     response = minio_client.get_object(BUCKET_NAME, storage_key)
     try:
         data = response.read()
@@ -202,28 +314,56 @@ def download_wav_from_minio(storage_key: str) -> bytes:
 
 
 def extract_wav2vec_features(wav_bytes: bytes, processor, model, device):
-    """Extrae features de Wav2Vec2 de un WAV."""
+    """
+    Extrae features de Wav2Vec2 a partir de los bytes de un archivo WAV.
+
+    Proceso:
+    1. Lee el WAV con soundfile.
+    2. Si es estéreo, toma solo el canal 0 (llamante).
+    3. Resamplea a 16 kHz si es necesario.
+    4. Trunca a 3 segundos (48,000 muestras) para uniformidad.
+    5. Pasa por Wav2Vec2 y extrae la capa oculta 4.
+    6. Promedia temporalmente para obtener un vector de 768 dimensiones.
+
+    Args:
+        wav_bytes: Bytes del archivo WAV.
+        processor: Instancia de Wav2Vec2Processor.
+        model:     Instancia de Wav2Vec2Model en el device correcto.
+        device:    torch.device (cpu, cuda, o mps).
+
+    Returns:
+        numpy array de shape (768,) con las features extraídas.
+    """
+    # Leer audio con soundfile (soporta múltiples formatos PCM).
     data, sr = sf.read(io.BytesIO(wav_bytes), dtype='float32')
+
+    # Si es estéreo, tomar solo el canal del llamante (canal 0).
     if data.ndim > 1:
         data = data[:, 0]
 
+    # Convertir a tensor de PyTorch con shape [1, num_samples].
     waveform = torch.from_numpy(data).float()
     if waveform.ndim == 1:
         waveform = waveform.unsqueeze(0)
 
+    # Resamplear a 16 kHz si el audio tiene otra frecuencia.
     if sr != 16000:
         resampler = torchaudio.transforms.Resample(orig_freq=sr, new_freq=16000)
         waveform = resampler(waveform)
 
+    # Truncar a 3 segundos (48,000 muestras a 16 kHz) para uniformidad.
     if waveform.shape[1] > 48000:
         waveform = waveform[:, :48000]
 
+    # Procesar con el tokenizer de Wav2Vec2.
     inputs = processor(waveform.squeeze().numpy(), sampling_rate=16000, return_tensors="pt")
     inputs = {k: v.to(device) for k, v in inputs.items()}
 
+    # Extraer features de la capa oculta 4 (sin gradientes).
     with torch.no_grad():
         outputs = model(**inputs, output_hidden_states=True)
         hidden_states = outputs.hidden_states[4]
+        # Promedio temporal: [1, T, 768] -> [768]
         features = hidden_states.mean(dim=1).squeeze().cpu().numpy()
 
     return features
@@ -234,10 +374,28 @@ def start_training(
     payload: TrainRequest,
     db: Session = Depends(get_db),
 ):
+    """
+    Inicia el reentrenamiento del modelo en segundo plano.
+
+    Valida que no haya otro entrenamiento activo y lanza el job
+    en un ThreadPoolExecutor. Retorna HTTP 202 (Accepted) inmediatamente.
+
+    Args:
+        payload: TrainRequest con el nombre del modelo.
+        db:      Sesión de base de datos.
+
+    Returns:
+        TrainStartResponse con el estado inicial.
+
+    Raises:
+        HTTPException 400 si el nombre está vacío.
+        HTTPException 409 si ya hay un entrenamiento activo.
+    """
     model_name = payload.model_name.strip()
     if not model_name:
         raise HTTPException(status_code=400, detail="El nombre del modelo es obligatorio.")
 
+    # Verificar que no haya un entrenamiento en curso.
     active_model = (
         db.query(TrainedModel)
         .filter(TrainedModel.status == ModelStatus.TRAINING)
@@ -249,6 +407,7 @@ def start_training(
             detail=f"Ya hay un entrenamiento activo: {active_model.name}.",
         )
 
+    # Lanzar el entrenamiento en un hilo separado.
     training_executor.submit(run_training_in_thread, TrainRequest(model_name=model_name))
     return TrainStartResponse(
         message=f"El entrenamiento de '{model_name}' comenzó en segundo plano.",
@@ -261,7 +420,23 @@ def train_model_job(
     payload: TrainRequest,
     db: Session = Depends(get_db),
 ):
-    """Reentrena el modelo desde cero con los audios clasificados."""
+    """
+    Job principal de reentrenamiento. Se ejecuta en un hilo separado.
+
+    Pasos:
+    1. Consultar audios clasificados en la BD.
+    2. Crear registro del modelo con status TRAINING.
+    3. Descargar WAVs y extraer features Wav2Vec2.
+    4. Dividir en train/val.
+    5. Entrenar LogisticRegression.
+    6. Calcular métricas de validación.
+    7. Serializar y subir el modelo a MinIO.
+    8. Actualizar registro en MySQL con métricas y status DISPONIBLE.
+
+    Args:
+        payload: TrainRequest con el nombre del modelo.
+        db:      Sesión de base de datos (creada por el thread).
+    """
 
     model_name = payload.model_name.strip()
     if not model_name:
@@ -276,6 +451,7 @@ def train_model_job(
         .all()
     )
 
+    # Se necesitan al menos 4 muestras para poder hacer train/val split.
     if len(reviewed_audios) < 4:
         raise HTTPException(
             status_code=400,
@@ -283,7 +459,7 @@ def train_model_job(
                    f"Actualmente hay {len(reviewed_audios)}.",
         )
 
-    # Verificar que hay al menos 1 de cada clase
+    # Verificar que hay al menos 1 muestra de cada clase.
     n_human = sum(1 for a in reviewed_audios if not a.is_synthetic)
     n_synthetic = sum(1 for a in reviewed_audios if a.is_synthetic)
 
@@ -320,34 +496,41 @@ def train_model_job(
 
     try:
         # ==========================================================
-        # 3. Descargar WAVs y extraer features
+        # 3. Descargar WAVs y extraer features Wav2Vec2
         # ==========================================================
+        # Seleccionar el mejor dispositivo disponible (MPS para Mac, CUDA, o CPU).
         device = torch.device("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
         processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base")
         wav2vec_model = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-base").to(device)
         wav2vec_model.eval()
 
+        # Diccionario para almacenar features por índice de audio.
         per_call = {}
         labels = []
 
         update_training_progress(db, nuevo_modelo, 5, "Descargando audios clasificados")
 
         for i, audio_record in enumerate(reviewed_audios):
+            # Verificar cancelación antes de procesar cada audio.
             if training_was_cancelled(db, nuevo_modelo.id):
                 return
 
+            # Etiquetar: 1 = sintético, 0 = humano.
             label = 1 if audio_record.is_synthetic else 0
             labels.append(label)
 
             print(f"   [{i + 1}/{len(reviewed_audios)}] Descargando {audio_record.storage_key}...")
             wav_bytes = download_wav_from_minio(audio_record.storage_key)
 
+            # Extraer features Wav2Vec2 (vector de 768 dimensiones).
             features = extract_wav2vec_features(wav_bytes, processor, wav2vec_model, device)
             per_call[i] = {
                 "features": features,
                 "label": label,
                 "title": audio_record.title,
             }
+
+            # Actualizar progreso: de 5% a 60% conforme se procesan los audios.
             update_training_progress(
                 db,
                 nuevo_modelo,
@@ -364,12 +547,13 @@ def train_model_job(
         labels_arr = np.array(labels)
         n_calls = len(reviewed_audios)
 
-        # Si hay muy pocas muestras, usar todo para train y no hacer val
+        # Si hay muy pocas muestras, usar todo para train (sin val real).
         if n_calls < 6:
             idx_train = list(range(n_calls))
-            idx_val = list(range(n_calls))  # val = train (sin reportar métricas reales)
+            idx_val = list(range(n_calls))  # val = train (métricas orientativas)
             print(f"   ⚠️ Pocas muestras ({n_calls}), usando todo para train")
         else:
+            # Split estratificado 75/25 para mantener proporción de clases.
             idx_train, idx_val = train_test_split(
                 range(n_calls),
                 test_size=0.25,
@@ -380,21 +564,24 @@ def train_model_job(
         print(f"   Split: train={len(idx_train)} val={len(idx_val)}")
 
         # ==========================================================
-        # 5. Crear nuevo detector y ajustar
+        # 5. Entrenar clasificador LogisticRegression
         # ==========================================================
         if training_was_cancelled(db, nuevo_modelo.id):
             return
 
         update_training_progress(db, nuevo_modelo, 65, "Ajustando detector")
 
+        # Construir matrices de features y labels para entrenamiento.
         X_train = np.array([per_call[i]["features"] for i in idx_train])
         y_train = np.array([per_call[i]["label"] for i in idx_train])
 
+        # LogisticRegression con class_weight='balanced' para manejar
+        # desbalanceo entre clases humano/sintético.
         detector = LogisticRegression(max_iter=1000, C=0.1, class_weight='balanced')
         detector.fit(X_train, y_train)
 
         # ==========================================================
-        # 8. Métricas de validación
+        # 6. Métricas de validación
         # ==========================================================
         val_accuracy = None
         val_auc = None
@@ -403,6 +590,7 @@ def train_model_job(
             X_val = np.array([per_call[i]["features"] for i in idx_val])
             y_val = np.array([per_call[i]["label"] for i in idx_val])
 
+            # Probabilidades de la clase positiva (sintético).
             val_scores = detector.predict_proba(X_val)[:, 1]
             val_pred = detector.predict(X_val)
 
@@ -415,7 +603,10 @@ def train_model_job(
         else:
             cm = None
 
-        detector.eta = 0.5 # Default probability threshold
+        # Umbral de decisión por defecto (0.5 para LogisticRegression).
+        detector.eta = 0.5
+
+        # Reporte completo del entrenamiento (se guarda como JSON en la BD).
         train_report = {
             "n_calls_total": n_calls,
             "n_train": len(idx_train),
@@ -435,17 +626,20 @@ def train_model_job(
             print(f"   AUC={val_auc:.3f}")
 
         # ==========================================================
-        # 9. Serializar y subir a MinIO
+        # 7. Serializar y subir el modelo a MinIO
         # ==========================================================
         if training_was_cancelled(db, nuevo_modelo.id):
             return
 
         update_training_progress(db, nuevo_modelo, 90, "Guardando modelo entrenado")
+
+        # Serializar el clasificador con joblib (compresión nivel 3).
         pkl_buffer = io.BytesIO()
         joblib.dump(detector, pkl_buffer, compress=3)
         pkl_buffer.seek(0)
         file_size = pkl_buffer.getbuffer().nbytes
 
+        # Subir el modelo serializado al bucket de MinIO.
         minio_client.put_object(
             BUCKET_NAME,
             storage_key,
@@ -460,7 +654,7 @@ def train_model_job(
         print(f"   ☁️ Modelo subido a MinIO: {storage_key} ({file_size} bytes)")
 
         # ==========================================================
-        # 10. Actualizar registro en MySQL
+        # 8. Actualizar registro en MySQL
         # ==========================================================
         nuevo_modelo.val_accuracy = val_accuracy
         nuevo_modelo.val_auc = val_auc
@@ -489,10 +683,11 @@ def train_model_job(
         )
 
     except Exception as e:
+        # Verificar si fue cancelado durante la excepción.
         if training_was_cancelled(db, nuevo_modelo.id):
             return
 
-        # Si falla, marcamos el modelo como eliminado
+        # Si falla, marcar el modelo como eliminado con el error.
         nuevo_modelo.status = ModelStatus.ELIMINADO
         nuevo_modelo.train_report = json.dumps({"progress": 0, "step": "Error", "error": str(e)})
         db.commit()
