@@ -14,6 +14,10 @@ Dos capas, ambas interpretables:
 
        p(H1|x) = sigmoid(w_a * LLR_acustico_total + w_b * LLR_comportamental_total + b)
 
+   Sigue siendo totalmente interpretable (2 pesos + 1 bias, uno por bloque),
+   pero permite que el entrenamiento aprenda cuánto pesar cada bloque según
+   qué tan informativo resultó ser en los datos reales, y actúa a la vez
+   como calibrador de probabilidad (Platt scaling sobre los dos scores).
 """
 from __future__ import annotations
 
@@ -43,8 +47,9 @@ class StackingCalibrator:
     el log-odds final. Se usa C pequeño (más regularización) porque con
     pocas llamadas y clases separables la logística sin penalizar diverge."""
 
-    def __init__(self):
-        self.clf = LogisticRegression(C=0.5, max_iter=1000)
+    def __init__(self, C: float = 0.5):
+        self.C = C
+        self.clf = LogisticRegression(C=C, max_iter=1000)
         self.mean_ = np.zeros(2)
         self.std_ = np.ones(2)
         self.fitted = False
@@ -83,6 +88,7 @@ class StackingCalibrator:
             return {"fitted": False}
         return {
             "fitted": True,
+            "C": self.C,
             "coef": self.clf.coef_.tolist(),
             "intercept": self.clf.intercept_.tolist(),
             "classes": self.clf.classes_.tolist(),
@@ -92,7 +98,7 @@ class StackingCalibrator:
 
     @classmethod
     def from_dict(cls, d: dict) -> "StackingCalibrator":
-        obj = cls()
+        obj = cls(C=d.get("C", 0.5))
         if d.get("fitted"):
             obj.clf.coef_ = np.array(d["coef"])
             obj.clf.intercept_ = np.array(d["intercept"])

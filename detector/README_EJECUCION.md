@@ -20,7 +20,7 @@ flowchart LR
 ## 1. Instalación
 
 ```bash
-python -m venv .venv && source .venv/bin/activate   # opcional pero recomendado
+python3 -m venv .venv && source .venv/bin/activate   # opcional pero recomendado
 pip install -r requirements.txt
 ```
 
@@ -35,7 +35,8 @@ detector/
 │   └── behavioral.py        # x_b: latencia de reacción, varianza online, overlap, backchannels
 ├── preprocessing/
 │   ├── vad.py                # VAD por energía (fallback si no hay turns.json)
-│   └── diarization.py        # arma turnos {channel,start,end} a partir de VAD estéreo
+│   ├── diarization.py        # arma turnos {channel,start,end} a partir de VAD estéreo
+│   └── augmentation.py       # aumento de datos: ruido, códec, banda telefónica, etc.
 ├── model/
 │   ├── density.py            # DiagonalGaussian + BlockDensityModel (LLR + atribución)
 │   ├── llr.py                 # ScoreAccumulator: score(t) acumulado, por bloque y por feature
@@ -44,6 +45,7 @@ detector/
 │   └── pipeline.py           # VoiceAuthenticityDetector (el "binario") + StreamingSession
 ├── train/
 │   ├── fit_densities.py      # entrena y guarda models/model.pkl
+│   ├── metrics.py            # Brier, ECE, IC bootstrap del AUC
 │   └── make_demo_dataset.py  # genera un dataset sintético de prueba (NO son voces reales)
 ├── data/train/{human,synthetic}/  # dataset de entrenamiento
 ├── models/model.pkl          # binario entrenado (incluido de ejemplo en este repo)
@@ -70,7 +72,21 @@ python3 -m train.fit_densities \
     --data_dir data/train \
     --out models/model.pkl \
     --prior_h1 0.3 \
-    --val_split 0.25
+    --n_folds 5 \
+    --n_repeats 20 \
+    --n_augments 4
+```
+
+Con un dataset más grande (cientos de llamadas), un ejemplo más "a fondo"
+probando además el hiperparámetro de regularización del stacking:
+
+```bash
+python3 -m train.fit_densities \
+    --data_dir data/train \
+    --out models/model.pkl \
+    --n_repeats 30 \
+    --n_augments 6 \
+    --stacking_C_grid "0.1,0.3,0.5,1.0,2.0"
 ```
 
 Argumentos:
@@ -80,25 +96,64 @@ Argumentos:
 | `--data_dir` | `data/train` | Carpeta con subcarpetas `human/` y `synthetic/` |
 | `--out` | `models/model.pkl` | Ruta de salida del binario entrenado |
 | `--prior_h1` | `0.3` | Prior `p(voz sintética)` usado por el fallback bayesiano |
-| `--val_split` | `0.25` | Fracción de llamadas usada para validación/umbral |
-| `--seed` | `42` | Semilla para el split train/val |
+| `--n_folds` | `5` | Folds de la validación cruzada por llamada, en CADA repetición |
+| `--n_repeats` | `20` | Repeticiones de la validación cruzada, cada una con una partición en folds distinta (semilla `seed+rep`). Esto es lo que da estabilidad al AUC reportado — no son "épocas", el modelo no usa descenso de gradiente |
+| `--seed` | `42` | Semilla base; la repetición `r` usa `seed + r` |
+| `--n_augments` | `4` | Variantes aumentadas (condición de canal/entorno) generadas por llamada. `0` desactiva la augmentación por completo |
+| `--augment_seed` | `--seed` | Semilla de la augmentación. Se genera UNA sola vez por llamada (no se regenera en cada fold/repetición) |
+| `--stacking_C_grid` | `"0.5"` | Uno o varios valores de `C` (regularización de la logística de stacking), separados por coma. Si se pasa más de uno, se corre la CV repetida completa para cada valor y se usa el de mayor AUC promedio |
+| `--feature_auc_margin` | `0.03` | `|AUC-0.5|` mínimo para que una feature se mantenga activa en el LLR |
+| `--min_features_acoustic` | `8` | Mínimo de features acústicas a conservar aunque no superen el margen |
+| `--min_features_behavioral` | `2` | Mínimo de features comportamentales a conservar aunque no superen el margen |
+| `--ece_bins` | `10` | Número de bins para el Expected Calibration Error |
+| `--n_bootstrap` | `2000` | Remuestras para el intervalo de confianza del AUC final |
 | `--plots_dir` | `reports` | Carpeta donde se guardan las gráficas PNG de diagnóstico. Pasa `--plots_dir ""` para desactivarlas |
 
-Al terminar imprime un reporte (AUC, accuracy, matriz de confusión, pesos
-del stacking) y guarda `models/model.pkl`.
+Al terminar imprime un reporte con: AUC OOF (+ intervalo de confianza por
+bootstrap), AUC media ± std ENTRE repeticiones de CV (la métrica de
+estabilidad real), accuracy, matriz de confusión, Brier score, ECE, y los
+pesos del stacking — y guarda `models/model.pkl`.
+
+### Sobre la augmentación (`--n_augments`)
+
+Cada llamada real se acompaña, SOLO durante el entrenamiento de cada fold
+(nunca en validación), de variantes con una condición de canal/entorno
+distinta: ruido a distintos SNR, ancho de banda tipo telefonía fija
+(300-3400 Hz), códec mu-law (G.711), pérdida de paquetes VoIP,
+reverberación leve, y cambios de ganancia — solas o combinadas (ver
+`preprocessing/augmentation.py`). Deliberadamente NO se usa pitch-shift ni
+time-stretch: alterarían jitter/shimmer y la coherencia de fase armónica,
+que son justo las features que distinguen voz humana de sintética. Cada
+variante se trata como más evidencia de la MISMA llamada (mismo
+`group_id`) para el shrinkage de varianza — nunca como una llamada nueva
+independiente, y nunca se filtra a validación.
+
+### Sobre la validación cruzada repetida (`--n_repeats`)
+
+Este modelo no se entrena por descenso de gradiente, así que "iterar más"
+no significa más épocas: significa repetir la validación cruzada con
+particiones distintas para ver qué tan estable es el resultado. Cada
+repetición cubre el 100% de las llamadas exactamente una vez (out-of-fold)
+con una partición en folds distinta. El AUC final reportado es el
+calculado sobre el promedio de esos scores OOF entre repeticiones, y
+además se reporta la media ± std del AUC de cada repetición individual:
+una std alta avisa que, con el tamaño actual del dataset, el número
+todavía depende demasiado de qué llamadas cayeron en cada partición.
 
 ## 4.1. Gráficas de diagnóstico generadas
 
-Cada corrida de `train/fit_densities.py` genera automáticamente 5 PNGs en
-`--plots_dir` (por defecto `reports/`):
+Cada corrida de `train/fit_densities.py` genera automáticamente hasta 7
+PNGs en `--plots_dir` (por defecto `reports/`):
 
 | Archivo | Qué muestra |
 |---|---|
-| `confusion_matrix.png` | Matriz de confusión sobre el split de validación |
-| `roc_curve.png` | Curva ROC de validación, con el punto operativo marcado en `eta` |
+| `confusion_matrix.png` | Matriz de confusión sobre el vector OOF |
+| `roc_curve.png` | Curva ROC (OOF), con el punto operativo marcado en `eta` |
 | `score_distribution.png` | Histograma del `score_total` por clase, con la línea del umbral `eta` |
-| `llr_scatter.png` | Dispersión `LLR_acústico` vs `LLR_comportamental` por llamada (train y val), con la frontera de decisión del stacking logístico |
+| `llr_scatter.png` | Dispersión `LLR_acústico` vs `LLR_comportamental` por llamada, con la frontera de decisión del stacking logístico |
 | `llr_block_distributions.png` | Histograma del LLR de cada bloque por separado, por clase |
+| `cv_repeat_stability.png` | Un punto por repetición de CV: qué tan estable es el AUC entre particiones distintas |
+| `calibration_reliability.png` | Diagrama de confiabilidad: confianza reportada vs. tasa real de aciertos, con el ECE |
 
 Estas gráficas se generan a partir del código en `train/plots.py` (usa
 matplotlib con backend `Agg`, sin necesidad de pantalla — funciona igual

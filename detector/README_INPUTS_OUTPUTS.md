@@ -153,20 +153,54 @@ El label (humano=0 / sintético=1) se toma del nombre de la carpeta.
 
 ### `train/fit_densities.py` (CLI)
 - **Input**: `--data_dir` (carpeta `human/`+`synthetic/`), `--out` (ruta
-  `.pkl`), `--prior_h1`, `--val_split`, `--seed`, `--plots_dir` (carpeta
-  para las gráficas PNG, `""` para desactivarlas).
+  `.pkl`), `--prior_h1`, `--n_folds`, `--n_repeats` (repeticiones de la CV
+  con particiones distintas), `--seed`, `--n_augments` (variantes
+  aumentadas por llamada; `0` desactiva), `--augment_seed`,
+  `--stacking_C_grid` (uno o varios valores de `C`, separados por coma),
+  `--feature_auc_margin`, `--min_features_acoustic`,
+  `--min_features_behavioral`, `--ece_bins`, `--n_bootstrap`,
+  `--plots_dir` (carpeta para las gráficas PNG, `""` para desactivarlas).
 - **Output**: archivo `models/model.pkl` (un `VoiceAuthenticityDetector`
-  serializado con `joblib`) + reporte impreso en consola (AUC, accuracy,
-  matriz de confusión, pesos del stacking). El mismo reporte queda
-  guardado dentro del binario en `detector.train_report`. Además, 5 PNGs
+  serializado con `joblib`) + reporte impreso en consola (AUC OOF con IC
+  bootstrap, AUC media±std ENTRE repeticiones de CV, accuracy, matriz de
+  confusión, Brier score, ECE, pesos del stacking). El mismo reporte
+  queda guardado dentro del binario en `detector.train_report`, incluyendo
+  además `augmentation` (metadatos de la augmentación), `stacking_C` (el
+  elegido), `stacking_C_grid_results` (si se probó más de un valor),
+  `cv_repeat_aucs` (lista completa), y `feature_keep_frequency_acoustic` /
+  `_behavioral` (qué tan seguido se mantuvo cada feature entre folds y
+  repeticiones — 1.0 = siempre se mantuvo, 0.0 = nunca). Además, 7 PNGs
   de diagnóstico en `--plots_dir` (ver `train/plots.py`):
   `confusion_matrix.png`, `roc_curve.png`, `score_distribution.png`,
-  `llr_scatter.png`, `llr_block_distributions.png`.
+  `llr_scatter.png`, `llr_block_distributions.png`,
+  `cv_repeat_stability.png`, `calibration_reliability.png`.
 
-### `train/plots.py::generate_all_plots(out_dir, cm, val_y, val_scores, auc, eta, all_llr_a, all_llr_b, all_y, train_mask, calibrator)`
+### `train/plots.py::generate_all_plots(out_dir, cm, val_y, val_scores, auc, eta, all_llr_a, all_llr_b, all_y, train_mask, calibrator, repeat_aucs=None, ece_report=None)`
 - **Input**: todos los arrays/objetos ya calculados por
-  `train/fit_densities.py` (no recalcula nada, solo grafica).
-- **Output**: lista de `Path` a los 5 PNG generados en `out_dir`.
+  `train/fit_densities.py` (no recalcula nada, solo grafica). `repeat_aucs`
+  y `ece_report` son opcionales; si se omiten, simplemente no se generan
+  `cv_repeat_stability.png` ni `calibration_reliability.png`.
+- **Output**: lista de `Path` a los PNG generados en `out_dir` (5 o 7,
+  según si se pasaron `repeat_aucs`/`ece_report`).
+
+### `preprocessing/augmentation.py::generate_augmented_variants(signal, sr, rng, n_variants)`
+- **Input**: señal mono del caller (float64), sample rate, un
+  `numpy.random.Generator` con semilla fija, y cuántas variantes generar.
+- **Output**: lista de `(tag, señal_aumentada)` — cada una con una
+  condición de canal/entorno distinta (ruido, ancho de banda telefónico,
+  códec mu-law, pérdida de paquetes, reverberación leve, ganancia, o
+  combinaciones). No inventa contenido nuevo: es la MISMA grabación bajo
+  otra condición de canal.
+
+### `train/metrics.py`
+- `brier_score(y, p)` — **input**: etiquetas reales y probabilidades
+  predichas. **output**: float, menor es mejor calibración.
+- `expected_calibration_error(y, p, n_bins=10)` — **output**: dict con
+  `ece` (float) y `bins` (detalle por bin, usado para el diagrama de
+  confiabilidad).
+- `bootstrap_auc_ci(y, score, n_boot=2000, alpha=0.05, seed=0)` —
+  **output**: dict con `ci_low`, `ci_high`, `median`, `n_valid_boot`
+  (remuestreo por llamada, no por segmento).
 
 ### `train/make_demo_dataset.py` (CLI)
 - **Input**: `--out_dir`, `--n_per_class`.

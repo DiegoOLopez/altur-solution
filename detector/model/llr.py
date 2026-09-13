@@ -3,6 +3,9 @@ Cómputo de LLR acumulado (sección 1.4 del documento):
 
     score(t) = sum_{k<=t} LLR_acustico(x_a^(k)) + sum_{eventos<=t} LLR_comportamental(x_b)
 
+Aditividad exacta entre bloques (independencia condicional asumida dado H),
+por lo que cada término del score tiene atribución exacta a un bloque y a
+una feature dentro de ese bloque — no es una aproximación tipo SHAP.
 """
 from __future__ import annotations
 

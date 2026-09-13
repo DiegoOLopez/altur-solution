@@ -143,10 +143,66 @@ def plot_block_llr_distributions(llr_a: np.ndarray, llr_b: np.ndarray, y: np.nda
     _savefig(fig, out_path)
 
 
+def plot_repeat_auc_stability(repeat_aucs: np.ndarray, out_path: str,
+                               title="Estabilidad del AUC entre repeticiones de CV"):
+    """Un punto por repetición de la validación cruzada repetida (cada
+    repetición = una partición distinta en folds). Un modelo estable se ve
+    como una nube apretada alrededor de la media; una nube muy dispersa
+    avisa que el dataset todavía es demasiado chico para confiar en un
+    solo número de AUC."""
+    repeat_aucs = np.asarray(repeat_aucs, dtype=np.float64)
+    fig, ax = plt.subplots(figsize=(5.5, 4))
+    x = np.arange(1, len(repeat_aucs) + 1)
+    ax.scatter(x, repeat_aucs, color="#1f77b4", zorder=3)
+    mean_auc = repeat_aucs.mean()
+    std_auc = repeat_aucs.std()
+    ax.axhline(mean_auc, color="black", linestyle="--", label=f"media={mean_auc:.3f}")
+    ax.axhspan(mean_auc - std_auc, mean_auc + std_auc, color="gray", alpha=0.2,
+               label=f"+/-1 std={std_auc:.3f}")
+    ax.set_xlabel("Repetición de CV (partición distinta)")
+    ax.set_ylabel("AUC (OOF de esa repetición)")
+    ax.set_ylim(0.0, 1.05)
+    ax.set_title(title)
+    ax.legend(loc="lower right", fontsize=8)
+    _savefig(fig, out_path)
+
+
+def plot_calibration_reliability(ece_report: dict, out_path: str,
+                                  title="Diagrama de confiabilidad (calibración)"):
+    """Confianza reportada (eje x) vs. tasa real de aciertos observada
+    (eje y), por bins. La diagonal punteada es la calibración perfecta:
+    si los puntos caen sistemáticamente por debajo/arriba de la diagonal,
+    el modelo está sobre/subconfiado, respectivamente."""
+    bins = ece_report.get("bins", [])
+    xs, ys, sizes = [], [], []
+    for b in bins:
+        if b["count"] == 0:
+            continue
+        xs.append(b["mean_confidence"])
+        ys.append(b["empirical_rate"])
+        sizes.append(b["count"])
+    fig, ax = plt.subplots(figsize=(4.5, 4.5))
+    ax.plot([0, 1], [0, 1], linestyle="--", color="gray", label="calibración perfecta")
+    if xs:
+        sizes_arr = np.array(sizes, dtype=np.float64)
+        ax.scatter(xs, ys, s=40 + 200 * sizes_arr / sizes_arr.max(), color="#d62728", alpha=0.8,
+                   label="bins observados (tamaño = # llamadas)")
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.set_xlabel("Confianza media reportada por el modelo")
+    ax.set_ylabel("Tasa real de H1 (sintético) observada")
+    ax.set_title(f"{title}\nECE={ece_report.get('ece', float('nan')):.3f}")
+    ax.legend(loc="upper left", fontsize=7)
+    _savefig(fig, out_path)
+
+
 def generate_all_plots(out_dir, cm, val_y, val_scores, auc, eta,
-                        all_llr_a, all_llr_b, all_y, train_mask, calibrator):
+                        all_llr_a, all_llr_b, all_y, train_mask, calibrator,
+                        repeat_aucs=None, ece_report=None):
     """Genera y guarda todas las gráficas de diagnóstico en `out_dir`.
-    Regresa la lista de rutas de los PNG generados."""
+    Regresa la lista de rutas de los PNG generados. `repeat_aucs` y
+    `ece_report` son opcionales (validación cruzada repetida / calibración);
+    si no se proveen, simplemente no se generan esas dos gráficas."""
     from pathlib import Path
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -172,5 +228,15 @@ def generate_all_plots(out_dir, cm, val_y, val_scores, auc, eta,
     p = out_dir / "llr_block_distributions.png"
     plot_block_llr_distributions(all_llr_a, all_llr_b, all_y, str(p))
     paths.append(p)
+
+    if repeat_aucs is not None and len(repeat_aucs) > 1:
+        p = out_dir / "cv_repeat_stability.png"
+        plot_repeat_auc_stability(np.asarray(repeat_aucs), str(p))
+        paths.append(p)
+
+    if ece_report is not None:
+        p = out_dir / "calibration_reliability.png"
+        plot_calibration_reliability(ece_report, str(p))
+        paths.append(p)
 
     return paths

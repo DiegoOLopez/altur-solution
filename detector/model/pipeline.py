@@ -24,7 +24,7 @@ import librosa
 import soundfile as sf
 import joblib
 
-from features.acoustic import segment_features, ACOUSTIC_FEATURE_NAMES, N_ACOUSTIC_FEATURES
+from features.acoustic import segment_features, is_active_segment, ACOUSTIC_FEATURE_NAMES, N_ACOUSTIC_FEATURES
 from features.behavioral import behavioral_event_features, BEHAVIORAL_FEATURE_NAMES, N_BEHAVIORAL_FEATURES
 from preprocessing.diarization import diarize_stereo
 from model.density import BlockDensityModel
@@ -117,13 +117,29 @@ class StreamingSession:
     _audio_buffer: list = field(default_factory=list)
     _buffer_t0: float = 0.0
     _t_cursor: float = 0.0
+    _running_peak: float = 1e-9  # pico de amplitud observado hasta ahora (causal)
     started_at: float = field(default_factory=time.time)
 
     # ---- entrada incremental de audio (caller, canal 0) ----
-    def push_audio_chunk(self, chunk: np.ndarray, sr: int) -> dict | None:
+    def push_audio_chunk(self, chunk: np.ndarray, sr: int, ref_peak: float | None = None) -> dict | None:
         """Agrega audio del caller al buffer; cuando se acumula un segmento
         completo (segment_seconds) calcula x_a y devuelve el snapshot del
-        score. Si aún no hay suficiente audio, regresa None."""
+        score. Si aún no hay suficiente audio, regresa None.
+
+        Los segmentos de silencio/ruido de fondo (ver `is_active_segment`)
+        se saltan: no se computan features ni se suman al score, para que
+        la distribución de segmentos vista aquí coincida con la usada en
+        entrenamiento (`train/fit_densities.py`).
+
+        `ref_peak`: pico de referencia para medir energía relativa. En modo
+        offline (`feed_full_call`) se pasa el pico de la llamada completa. En
+        modo streaming real no se conoce de antemano, así que se usa
+        `_running_peak` (el pico observado hasta el momento), que se
+        actualiza de forma causal con cada chunk."""
+        if chunk.size:
+            self._running_peak = max(self._running_peak, float(np.abs(chunk).max()))
+        peak = ref_peak if ref_peak is not None else self._running_peak
+
         self._audio_buffer.append(chunk)
         buffered = np.concatenate(self._audio_buffer) if len(self._audio_buffer) > 1 else self._audio_buffer[0]
         seg_len = int(self.detector.segment_seconds * sr)
@@ -131,12 +147,14 @@ class StreamingSession:
         while len(buffered) >= seg_len:
             seg = buffered[:seg_len]
             buffered = buffered[seg_len:]
-            x_a = segment_features(seg, sr)
-            attribution = self.detector.acoustic_block.llr_attribution(x_a)
             t = self._buffer_t0 + self.detector.segment_seconds
-            snap = self.acc.add_acoustic(t, attribution)
             self._buffer_t0 = t
             self._t_cursor = t
+            if not is_active_segment(seg, peak):
+                continue  # silencio: no aporta evidencia, se descarta
+            x_a = segment_features(seg, sr)
+            attribution = self.detector.acoustic_block.llr_attribution(x_a)
+            snap = self.acc.add_acoustic(t, attribution)
         self._audio_buffer = [buffered] if len(buffered) else []
         return snap
 
@@ -151,12 +169,16 @@ class StreamingSession:
         seg_len = int(self.detector.segment_seconds * sr)
         n_segments = len(caller) // seg_len
         behavioral_events = behavioral_event_features(turns) if turns else []
+        # offline: se conoce toda la llamada de antemano, así que se usa el
+        # pico real de la llamada completa como referencia de energía (igual
+        # que en entrenamiento), en vez del pico causal usado en streaming.
+        ref_peak = float(np.abs(caller).max()) if caller.size else 1e-9
 
         be_idx = 0
         for i in range(n_segments):
             seg = caller[i * seg_len:(i + 1) * seg_len]
             t = (i + 1) * self.detector.segment_seconds
-            self.push_audio_chunk(seg, sr)
+            self.push_audio_chunk(seg, sr, ref_peak=ref_peak)
 
             # intercalar eventos comportamentales que ya "sucedieron" a este tiempo
             while be_idx < len(behavioral_events) and behavioral_events[be_idx][0] <= t:

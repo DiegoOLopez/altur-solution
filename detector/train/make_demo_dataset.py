@@ -13,7 +13,7 @@ Simula la diferencia H0 (humano) vs H1 (sintético) con:
     fase más coherente entre frames, pausas muy uniformes, latencias de
     reacción post-turno del agente muy consistentes (baja varianza).
 
-IMPORTANTE: esto es solo para *validar el codigo*. Para el reto real hay
+IMPORTANTE: esto es solo para *validar la tubería*. Para el reto real hay
 que apuntar train/fit_densities.py al dataset real de Altur.
 """
 from __future__ import annotations
