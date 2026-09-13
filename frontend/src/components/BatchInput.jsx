@@ -36,7 +36,7 @@ const INGESTION_STEPS = [
 const ANALYSIS_STEPS = [
   {
     id: 'post',
-    label: 'POST /detectar',
+    label: 'POST /detect',
     sublabel: () => 'Solicitud HTTP al detector forense'
   },
   {
@@ -117,7 +117,7 @@ export default function BatchInput({
     return () => clearInterval(interval);
   }, [currentAudioTitle]);
 
-  // Progressive status while POST /detectar is analyzing
+  // Progressive status while POST /detect is analyzing
   useEffect(() => {
     if (!isAnalyzing) return;
     setAnalysisPhase(0);
@@ -229,13 +229,13 @@ export default function BatchInput({
       <div>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '6px', gap: '10px' }}>
           <div>
-            <span className="fx-kicker">POST /detectar · Entrada</span>
+            <span className="fx-kicker">POST /detect · Entrada</span>
             <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--altur-black)', letterSpacing: '-0.02em', marginTop: '4px' }}>
               Análisis Forense de Audio
             </h2>
           </div>
           <span className="altur-badge badge-cyan font-mono">
-            POST /detectar
+            POST /detect
           </span>
         </div>
         <p
@@ -338,7 +338,7 @@ export default function BatchInput({
       {/* Forensic Pipeline: Inference & Verdict */}
       <ForensicPipeline
         title="Inferencia y Veredicto"
-        badge={isAnalyzing ? 'PROCESANDO' : 'POST /detectar'}
+        badge={isAnalyzing ? 'PROCESANDO' : 'POST /detect'}
         live={isAnalyzing}
         steps={analysisSteps}
       />
