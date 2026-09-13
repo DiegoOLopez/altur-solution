@@ -1,0 +1,34 @@
+[0.0s] AGENTE: Buen día, gracias por llamar a Banco Altur, le atiende Marina.
+[0.5s] PERSONA: Hola soy Ernesto Villalobos, mi tarjeta no ha llegado y quería chicar cuando podría llegar.
+[3.4s] AGENTE: Le comento que esta llamada se graba para fines de calidad. ¿En qué le puedo ayudar?
+[7.8s] AGENTE: Claro, señor Villalobos, entiendo su preocupación.
+[13.7s] PERSONA: 1 9 8 6 6 3 0. No, 1 1 9 8 6 6 3 0.
+[17.9s] AGENTE: Para apoyarle mejor, me puede proporcionar su número de referencia de cliente, por favor.
+[21.7s] AGENTE: Así reviso el estatus del envío.
+[29.6s] AGENTE: Gracias, entonces confirmo 119-8661.
+[33.9s] AGENTE: Así es.
+[36.3s] AGENTE: Ah, disculpe, creo que lo anote mal.
+[38.4s] AGENTE: Me lo repite, por favor.
+[39.9s] AGENTE: Perfecto, gracias. Ahora sí, 1-1-9-8-6-6-3-0.
+[50.4s] AGENTE: Correcto, me puede platicar un poquito más.
+[52.0s] PERSONA: Sí, pedí la tarjeta el 19 de agosto y no me ha llegado en línea. La plus 11986630.
+[52.4s] AGENTE: Por ejemplo, ¿desde cuándo solicito?
+[58.8s] AGENTE: Perdón que lo interrumpa. El 19 de agosto hizo la solicitud por teléfono, en su cursal o en línea.
+[64.1s] AGENTE: Gracias por la información, continúe por...
+[66.1s] AGENTE: Ah, entiendo. Esto es sobre su cuenta Nómina Plus o sobre su crédito verde.
+[71.1s] AGENTE: Ok.
+[77.6s] AGENTE: Bien, señor Villalobos, ¿me puede confirmar nuevamente su número de referencia completo, por favor?
+[82.6s] AGENTE: Gracias, confirmo 11986630.
+[95.2s] AGENTE: Así está correcto, listo, ya quedó registrado su reporte por tarjeta no entregada de la cuenta Nómina Plus.
+[96.6s] PERSONA: Sí, entonces no tienen una fecha para la entrega de la tarjeta. Por favor.
+[100.3s] AGENTE: Le comparto su folio 614287.
+[104.2s] AGENTE: El tiempo apróximado de respuesta es de 7 a 10 días hábiles y le avisaremos al número que tiene registrado.
+[110.2s] AGENTE: ¿Hay algo más en lo que le pueda apoyar hoy?
+[112.2s] AGENTE: Fíjese que la entrega normalmente tarda de 7 a 10 días hábiles después de la solicitud, pero depende de la paquetería.
+[123.6s] AGENTE: No puedo darle una fecha exacta por teléfono, pero con el folio que le di se puede rastrear.
+[128.3s] AGENTE: Y si hubiera algún retraso le van a contactar.
+[130.5s] AGENTE: ¿Desea que le envíen la próxima notificación por mensaje al número registrado?
+[136.9s] AGENTE: Perfecto, lo dejo anotado.
+[138.2s] AGENTE: Le enviarán cualquier actualización por mensaje al número registrado.
+[141.4s] AGENTE: Que tenga excelente tarde, señor Villalobos.
+[143.5s] AGENTE: Gracias por comunicarse a Banco Altur.
