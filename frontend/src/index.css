@@ -954,39 +954,26 @@ body {
 }
 
 /* ── Análisis Forense de Audio · /detect ─────────────────────────────
-   Lenguaje visual compartido con ReviewHub y Live Call:
-   tarjetas planas, kicker en mayúsculas, jerarquía editorial y
-   dashboard en grilla responsiva. */
+   Ahora comparte la jerarquía .review-intro con ReviewHub y Live Call.
+   Las reglas .forensic-shell.review-hub anulan el padding/bg del
+   review-hub genérico para que conviva con el <main> del batch. */
 .forensic-shell {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
-.fx-intro {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 20px;
-  flex-wrap: wrap;
-  margin-bottom: 4px;
+.forensic-shell.review-hub {
+  min-height: auto;
+  padding: 0;
+  background: none;
+  color: inherit;
 }
 
-.fx-intro h1 {
-  margin: 8px 0 6px;
-  color: var(--altur-black);
-  font-size: clamp(1.7rem, 3vw, 2.35rem);
-  font-weight: 800;
-  letter-spacing: -0.035em;
-  line-height: 1.05;
-}
-
-.fx-intro p {
-  max-width: 560px;
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  line-height: 1.55;
+.forensic-shell.review-hub > * {
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
 }
 
 .fx-kicker {
@@ -1060,9 +1047,6 @@ body {
   }
 }
 
-@media (max-width: 480px) {
-  .fx-intro { align-items: flex-start; flex-direction: column; }
-}
 
 /* ── Live Call Simulator Bento Grid ────────────────────────────────── */
 .sim-bento-grid {

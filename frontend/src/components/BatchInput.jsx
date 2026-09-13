@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { UploadCloud, ArrowRight } from 'lucide-react';
+import { UploadCloud } from 'lucide-react';
 
 import {
   encodeStereoWav8kHz,
@@ -87,7 +87,6 @@ function buildTranscodedDetail(fileName, decodedBuffer, b64Len) {
 
 export default function BatchInput({
   onAudioReady,
-  onRunBatchAnalysis,
   isAnalyzing,
   currentAudioTitle,
   verdictTitle
@@ -344,23 +343,6 @@ export default function BatchInput({
         steps={analysisSteps}
       />
 
-      {/* Main Trigger Action */}
-      <button
-        className="btn-altur btn-altur-primary"
-        style={{ width: '100%', padding: '16px', fontSize: '1rem' }}
-        onClick={onRunBatchAnalysis}
-        disabled={isAnalyzing || !hasAudio}
-      >
-        {isAnalyzing ? (
-          <><span className="rotate-spin" style={{ width: '15px', height: '15px', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: '#ffffff', borderRadius: '50%', display: 'inline-block' }}></span>
-            <span>Ejecutando POST /detect...</span></>
-        ) : (
-          <>
-            <span>Ejecutar Detección Forense (POST /detect)</span>
-            <ArrowRight size={18} />
-          </>
-        )}
-      </button>
     </div>
   );
 }

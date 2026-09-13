@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { ArrowRight, Loader2 } from 'lucide-react';
 import Navbar from './components/Navbar';
 import BatchInput from './components/BatchInput';
 import StreamingCallSimulator from './components/StreamingCallSimulator';
@@ -219,28 +220,34 @@ La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosó
           }}
         >
           {activeMode === 'batch' ? (
-            <div className="forensic-shell">
-              {/* Section header */}
-              <header className="fx-intro">
+            <div className="forensic-shell review-hub">
+              <section className="review-intro">
                 <div>
-                  <span className="fx-kicker">Módulo de auditoría forense</span>
-                  <h1>Análisis Forense de Audio</h1>
-                  <p>
+                  <p className="review-eyebrow"><span />Módulo de auditoría forense</p>
+                  <h1>Análisis<br /><em>forense.</em></h1>
+                  <p className="review-intro-copy">
                     Verifica si la voz del llamante es humana o sintética utilizando
                     la evidencia acústica y comportamental que devuelve el modelo.
                   </p>
                 </div>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <span className="altur-badge badge-cyan font-mono">POST /detect_wav</span>
-                </div>
-              </header>
+                <button
+                  className="review-primary-button"
+                  onClick={handleRunBatchAnalysis}
+                  disabled={isAnalyzing || !activeAudio}
+                >
+                  {isAnalyzing ? (
+                    <><Loader2 size={18} className="rotate-spin" /> Analizando…</>
+                  ) : (
+                    <><ArrowRight size={18} /> Ejecutar detección</>
+                  )}
+                </button>
+              </section>
 
               {/* Bento dashboard */}
               <div className="fx-bento">
                 <div className="fx-cell-input">
                   <BatchInput
                     onAudioReady={handleAudioReady}
-                    onRunBatchAnalysis={handleRunBatchAnalysis}
                     isAnalyzing={isAnalyzing}
                     currentAudioTitle={activeAudio?.title}
                     verdictTitle={verdictFor}
