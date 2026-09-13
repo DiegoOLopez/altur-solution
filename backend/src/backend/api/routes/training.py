@@ -31,6 +31,7 @@ from pathlib import Path
 import joblib
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from minio import Minio
 from pydantic import BaseModel
 from sklearn.metrics import roc_auc_score, accuracy_score, confusion_matrix
@@ -271,6 +272,63 @@ def cancel_training(db: Session = Depends(get_db)):
     db.commit()
     db.refresh(model)
     return serialize_training_status(model)
+
+
+@router.get("/models")
+def list_trained_models(db: Session = Depends(get_db)):
+    """
+    Lista todos los modelos entrenados disponibles.
+    """
+    models = (
+        db.query(TrainedModel)
+        .filter(TrainedModel.status == ModelStatus.DISPONIBLE)
+        .order_by(TrainedModel.created_at.desc())
+        .all()
+    )
+    
+    return [
+        {
+            "id": m.id,
+            "name": m.name,
+            "created_at": m.created_at,
+            "n_samples_human": m.n_samples_human,
+            "n_samples_synthetic": m.n_samples_synthetic,
+            "val_accuracy": m.val_accuracy,
+            "val_auc": m.val_auc,
+        }
+        for m in models
+    ]
+
+
+@router.get("/models/{model_id}/download")
+def download_trained_model(model_id: int, db: Session = Depends(get_db)):
+    """
+    Descarga el archivo .joblib de un modelo entrenado desde MinIO.
+    """
+    model = db.query(TrainedModel).filter(TrainedModel.id == model_id).first()
+    if not model or model.status != ModelStatus.DISPONIBLE:
+        raise HTTPException(status_code=404, detail="Modelo no encontrado o no disponible.")
+    
+    try:
+        response = minio_client.get_object(BUCKET_NAME, model.storage_key)
+        
+        # Generator for streaming the file chunk by chunk
+        def iterfile():
+            try:
+                for chunk in response.stream(32 * 1024):
+                    yield chunk
+            finally:
+                response.close()
+                response.release_conn()
+
+        filename = model.storage_key.split("/")[-1]
+        headers = {
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
+        
+        return StreamingResponse(iterfile(), media_type="application/octet-stream", headers=headers)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al descargar el modelo: {str(e)}")
 
 
 def run_training_in_thread(payload: TrainRequest):

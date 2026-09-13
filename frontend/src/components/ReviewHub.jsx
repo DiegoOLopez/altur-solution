@@ -18,7 +18,8 @@ import {
   Play,
   Sparkles,
   Trash2,
-  X
+  X,
+  Download
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'http://localhost:8000';
@@ -84,6 +85,9 @@ export default function ReviewHub() {
   const [isCancellingTraining, setIsCancellingTraining] = useState(false);
   const [trainingResult, setTrainingResult] = useState(null);
   const [trainingStatus, setTrainingStatus] = useState({ status: 'idle', progress: 0, step: 'Sin entrenamiento activo' });
+  const [isModelsModalOpen, setIsModelsModalOpen] = useState(false);
+  const [models, setModels] = useState([]);
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
   const inputRef = useRef(null);
   const audioRef = useRef(null);
   useEffect(() => {
@@ -137,12 +141,28 @@ export default function ReviewHub() {
     };
 
     refreshTrainingStatus();
-  intervalId = window.setInterval(refreshTrainingStatus, 2000);
+    intervalId = window.setInterval(refreshTrainingStatus, 2000);
     return () => {
       isMounted = false;
       if (intervalId) window.clearInterval(intervalId);
     };
   }, []);
+
+  const openModelsModal = async () => {
+    setIsModelsModalOpen(true);
+    setIsLoadingModels(true);
+    try {
+      const response = await fetch(`${API_BASE}/review/models`);
+      if (response.ok) {
+        const data = await response.json();
+        setModels(data);
+      }
+    } catch (e) {
+      console.error('Error fetching models', e);
+    } finally {
+      setIsLoadingModels(false);
+    }
+  };
 
   const playAudio = async (note) => {
     if (playingId === note.id) {
@@ -256,7 +276,29 @@ export default function ReviewHub() {
     <section className="review-intro"><div><p className="review-eyebrow"><span />Centro de revisión</p><h1>Haz que cada voz<br /><em>cuente.</em></h1><p className="review-intro-copy">Revisa tus notas de audio y ayuda a Vocalis a entender mejor las conversaciones de tu equipo.</p></div><button className="review-primary-button" onClick={() => setIsTrainingOpen(true)} disabled={trainingStatus.status === 'training' || isTraining} title={trainingStatus.status === 'training' ? 'Ya hay un entrenamiento en curso' : undefined}><Sparkles size={18} />{trainingStatus.status === 'training' ? 'Entrenamiento en curso' : 'Entrenar de nuevo'}</button></section>
     <div className="review-bento-grid">
       <section className="review-metrics" aria-label="Resumen de notas"><MetricCard label="Total de grabaciones" value={stats.total} detail="Disponibles para entrenar" tone="green" /><MetricCard label="Muestras clasificadas" value={stats.reviewed} detail="Listas para el modelo" tone="blue" /><MetricCard label="Pendientes de revisión" value={notes.length} detail="Necesitan tu atención" tone="orange" /></section>
-      <section className="review-model-card"><div className="review-model-header"><div><p className="review-card-kicker">Datos para entrenamiento</p><h2>{trainingStatus.model_name || 'Vocalis / base-01'}</h2></div><span className="review-model-state">{trainingStatus.status === 'training' ? `${trainingStatus.progress}% en curso` : `${stats.pending} pendientes`}</span></div><div className="review-model-log"><p><time>PENDIENTES</time><span>{stats.pending} grabaciones esperan revisión</span></p><p><time>CLASIFICADAS</time><span>{stats.reviewed} muestras listas para entrenar</span></p><p><time>TOTAL</time><span>{stats.total} grabaciones disponibles</span></p></div></section>
+      <section className="review-model-card">
+        <div className="review-model-header">
+          <div>
+            <p className="review-card-kicker">Datos para entrenamiento</p>
+            <h2>{trainingStatus.model_name || 'Vocalis / base-01'}</h2>
+          </div>
+          <span className="review-model-state">{trainingStatus.status === 'training' ? `${trainingStatus.progress}% en curso` : `${stats.pending} pendientes`}</span>
+        </div>
+        <div className="review-model-log">
+          <p><time>PENDIENTES</time><span>{stats.pending} grabaciones esperan revisión</span></p>
+          <p><time>CLASIFICADAS</time><span>{stats.reviewed} muestras listas para entrenar</span></p>
+          <p><time>TOTAL</time><span>{stats.total} grabaciones disponibles</span></p>
+        </div>
+        <button
+          className="review-primary-button"
+          style={{ marginTop: '1rem', width: '100%', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#ffffff', transition: 'background 0.2s' }}
+          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+          onClick={openModelsModal}
+        >
+          Modelos disponibles
+        </button>
+      </section>
       <section className="review-list-section"><button className="review-section-heading" onClick={() => setIsExpanded((current) => !current)} aria-expanded={isExpanded}><span><span className="review-section-icon"><Headphones size={18} /></span><span><strong>Revisar notas</strong><small>{isLoading ? 'Cargando notas...' : `${notes.length} notas esperan tu revisión`}</small></span></span><ChevronDown className={isExpanded ? 'rotate' : ''} size={21} /></button>{isExpanded && <div className="review-notes-list">{error && <p className="review-error-message">{error}</p>}{isLoading ? <div className="review-empty-state"><span>Cargando notas...</span></div> : notes.length ? notes.map((note) => <NoteRow key={note.id} note={note} playing={playingId === note.id} selectedClassification={selections[note.id]} onPlay={() => playAudio(note)} onSelect={(classification) => setSelections((current) => ({ ...current, [note.id]: classification }))} onConfirm={() => confirmClassification(note.id)} isSaving={savingId === note.id} />) : <div className="review-empty-state"><Check size={20} /><strong>Todo revisado</strong><span>Ya clasificaste todas las notas de esta sesión.</span></div>}</div>}</section>
     </div>
     {trainingStatus.status === 'training' && <aside className="review-training-tooltip" role="status" aria-live="polite"><div className="review-training-tooltip-header"><Sparkles size={16} /><strong>Entrenamiento en segundo plano</strong><span>{trainingStatus.progress}%</span></div><div className="review-training-progress"><i style={{ width: `${trainingStatus.progress}%` }} /></div><p>{trainingStatus.step}</p><small>No puedes iniciar otro entrenamiento hasta que este termine.</small><button className="review-training-cancel" onClick={cancelTraining} disabled={isCancellingTraining}>{isCancellingTraining ? 'Cancelando...' : 'Cancelar entrenamiento'}</button></aside>}
@@ -274,10 +316,46 @@ export default function ReviewHub() {
       ) : (
         <>
           <p className="review-modal-copy">Dale un nombre para reconocerlo fácilmente cuando esté listo.</p>
-          {error && <p className="review-error-message" style={{marginBottom: '1rem'}}>{error}</p>}
+          {error && <p className="review-error-message" style={{ marginBottom: '1rem' }}>{error}</p>}
           <form onSubmit={submitTraining}><label htmlFor="review-model-name">Nombre del modelo</label><div className="review-input-wrap"><input id="review-model-name" ref={inputRef} value={modelName} onChange={(event) => setModelName(event.target.value)} placeholder="Ej. Vocalis primavera" disabled={isTraining} /><span><CornerDownLeft size={13} />Intro</span></div><button className="review-primary-button review-modal-submit" type="submit" disabled={isTraining || !modelName.trim()}>{isTraining ? 'Entrenando...' : 'Comenzar entrenamiento'} <Sparkles size={16} /></button></form>
         </>
       )}
     </section></div>, document.body)}
+
+    {isModelsModalOpen && createPortal(
+      <div className="review-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsModelsModalOpen(false); }}>
+        <section className="review-training-modal" style={{ maxWidth: '600px', width: '90%' }} role="dialog" aria-modal="true">
+          <button className="review-close-button" onClick={() => setIsModelsModalOpen(false)} aria-label="Cerrar"><X size={18} /></button>
+          <div className="review-modal-symbol"><Sparkles size={22} /></div>
+          <p className="review-eyebrow">HISTORIAL</p>
+          <h2>Modelos Entrenados</h2>
+
+          <div style={{ marginTop: '1.5rem', maxHeight: '60vh', overflowY: 'auto' }}>
+            {isLoadingModels ? (
+              <p style={{ textAlign: 'center', padding: '2rem' }}>Cargando modelos...</p>
+            ) : models.length === 0 ? (
+              <p style={{ textAlign: 'center', padding: '2rem' }}>No hay modelos entrenados disponibles.</p>
+            ) : (
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {models.map(m => (
+                  <li key={m.id} style={{ background: 'var(--bg-subtle)', padding: '15px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '1rem', color: 'var(--altur-black)' }}>{m.name}</h4>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                        <span>{formatDate(m.created_at)}</span> • <span>{m.n_samples_human} H / {m.n_samples_synthetic} S</span>
+                        {m.val_accuracy !== null && <span> • Acc: {(m.val_accuracy * 100).toFixed(1)}%</span>}
+                      </div>
+                    </div>
+                    <a href={`${API_BASE}/review/models/${m.id}/download`} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--accent-cyan-light)', color: '#0284c7', padding: '8px 12px', borderRadius: 'var(--radius-sm)', textDecoration: 'none', fontSize: '0.85rem', fontWeight: 600, border: '1px solid rgba(2, 132, 199, 0.2)' }}>
+                      <Download size={14} /> Descargar
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+      </div>, document.body
+    )}
   </div>;
 }
