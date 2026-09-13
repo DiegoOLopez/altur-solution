@@ -115,20 +115,22 @@ export default function App() {
   // Actualización en vivo del modo streaming (POST /detect_streaming).
   // Se conserva el flujo existente de streaming.
   const handleStreamingUpdate = async (streamData) => {
-    if (analysisResult) {
-      setAnalysisResult((prev) => ({
-        ...prev,
-        is_synthetic: streamData.isSynthetic,
-        confidence: streamData.currentRisk / 100,
-        metrics: {
-          ...prev.metrics,
-          acoustic_score: streamData.isSynthetic
-            ? Math.min(95, 50 + streamData.elapsed * 8)
-            : Math.max(5, 30 - streamData.elapsed * 4),
-          turn_recovery_ms: streamData.isSynthetic ? 180 : 420
-        }
-      }));
-    }
+    setAnalysisResult((prev) => ({
+      ...prev,
+      is_synthetic: streamData.is_synthetic,
+      confidence: streamData.confidence,
+      score_total: streamData.score_total,
+      llr_acoustic_cum: streamData.llr_acoustic_cum,
+      llr_behavioral_cum: streamData.llr_behavioral_cum,
+      n_acoustic_segments: streamData.n_acoustic_segments,
+      n_behavioral_events: streamData.n_behavioral_events,
+      eta: streamData.eta,
+      metrics: {
+        ...prev?.metrics,
+        acoustic_score: streamData.is_synthetic ? 94 : 8,
+        turn_recovery_ms: streamData.is_synthetic ? 180 : 420
+      }
+    }));
   };
 
   // Fin de la llamada streaming: se construye el resultado final.

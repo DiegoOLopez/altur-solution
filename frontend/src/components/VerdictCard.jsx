@@ -242,9 +242,6 @@ export default function VerdictCard({ result, isAnalyzing }) {
             <CornerDownRight size={12} color="#00f2fe" />
             Explicabilidad para auditoría bancaria y jueces
           </span>
-          <span className="font-mono">
-            Model: Gemini 2.5 Flash Telephony Forensic
-          </span>
         </div>
       </div>
     </div>

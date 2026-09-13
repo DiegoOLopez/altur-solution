@@ -3,6 +3,7 @@ import { Activity, CircleStop, Mic, Radio, Server, Wifi } from "lucide-react";
 
 export default function StreamingCallSimulator({
   apiBaseUrl = "http://localhost:8000",
+  onStreamingUpdate,
 }) {
   const [isConnected, setIsConnected] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -58,6 +59,12 @@ export default function StreamingCallSimulator({
 
             case "detection":
               setDetection(data.result);
+              onStreamingUpdate?.({
+                ...data.result,
+                confidence: data.result.is_synthetic
+                  ? data.result.confidence
+                  : 1 - data.result.confidence,
+              });
               break;
 
             case "error":
@@ -213,7 +220,11 @@ export default function StreamingCallSimulator({
     };
   }, []);
 
-  const confidence = detection?.confidence ?? null;
+  const confidence = detection
+    ? detection.is_synthetic
+      ? detection.confidence
+      : 1 - detection.confidence
+    : null;
   const isSynthetic = detection?.is_synthetic ?? null;
 
   return (

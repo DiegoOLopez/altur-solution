@@ -171,7 +171,7 @@ def main():
     parser.add_argument("--audio-dir", default=os.path.join(ROOT, "audio"))
     parser.add_argument("--split", default="val", choices=["train", "val", "all", "hidden"])
     parser.add_argument("--n", type=int, default=10, help="How many calls to send (0 = all)")
-    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--timeout", type=float, default=30.0, help="Seconds per call")
     parser.add_argument("--out", help="Write per-call results and summary to this JSON file")
     args = parser.parse_args()
