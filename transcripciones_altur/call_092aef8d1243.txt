@@ -1,0 +1,34 @@
+[0.0s] AGENTE: Buen día, gracias por llamar a Banco Altur, le atiende Marina.
+[3.4s] AGENTE: Le comento que esta llamada se graba para fines de calidad. ¿En qué le puedo ayudar?
+[7.8s] AGENTE: Claro, señor Luis, con gusto le ayudo a registrar la solicitud para cambiar su número.
+[8.1s] PERSONA: Hola Marina, soy Luis Montaño, quería cambiar mi número que tengo como referencia.
+[13.1s] PERSONA: Claro es 7 7 1 2 0 4 5 9. No, 5. Sí, 5. 5.
+[18.9s] AGENTE: ¿Me puede indicar por favor su número de referencia de cliente?
+[22.0s] AGENTE: Perfecto, entonces, para confirmar su referencia es 7771240469, así es.
+[38.2s] AGENTE: Disculpe, me puede repetir el penúltimo dígito por favor.
+[43.3s] AGENTE: Es 5 ¿verdad?
+[44.8s] AGENTE: ¿Para qué quede bien registrado?
+[47.3s] AGENTE: Gracias, señor Luis.
+[48.5s] PERSONA: Un crédito verde. 7 7 1 2 0 4 5 9. No te dejo que dar mi número telefónico por aquí.
+[48.8s] AGENTE: Ahora, me puede platicar...
+[50.8s] AGENTE: Perdón que lo interrumpa.
+[52.3s] AGENTE: Mencionó que el penúltimo dígito es 5.
+[54.8s] AGENTE: Entonces su referencia queda como 7.
+[56.8s] AGENTE: 7 1 2 0 4 5 9 ¿verdad?
+[60.3s] AGENTE: Muy bien, queda registrado así.
+[63.3s] AGENTE: Ah, ok, entonces lo veo por su referencia.
+[65.3s] AGENTE: Esto es sobre su cuenta, no mina plus o sobre su crédito verde.
+[68.3s] AGENTE: Ok. Muy bien señor Luis. Para continuar, me puede confirmar por favor su número de referencia completo dígito por dígito.
+[81.1s] AGENTE: Perfecto. Entonces queda registrado 7 7 1 2 0 4 5 9. Es correcto. Muy bien señor Luis.
+[94.2s] AGENTE: Su solicitud para el cambio de número con su crédito verde quedó registrada.
+[98.2s] AGENTE: El área correspondiente hará la validación y si todo está en orden, se le enviará un código de confirmación al número anterior.
+[104.2s] AGENTE: Si ya no tiene acceso, le pedirán acudir a su cursal con una identificación.
+[108.4s] AGENTE: Le proporciono su folio 5-8-3-2-1-7.
+[112.0s] AGENTE: El tiempo de respuesta es de 1 a 3 días hábiles.
+[114.4s] AGENTE: ¿Hay algo más en lo que le pueda ayudar hoy?
+[116.6s] AGENTE: Está bien, señor Luis.
+[122.8s] AGENTE: No es necesario que proporciones un número por teléfono si así lo prefiere.
+[126.2s] AGENTE: Su solicitud ya quedó registrada y cualquier detalle adicional.
+[129.2s] AGENTE: Lo puede ver directamente en su cursal.
+[131.0s] AGENTE: Que tenga una excelente tarde.
+[132.4s] AGENTE: Gracias por llamar a Banco Altur.

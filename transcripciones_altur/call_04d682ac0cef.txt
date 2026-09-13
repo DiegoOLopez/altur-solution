@@ -1,0 +1,41 @@
+[0.3s] AGENTE: Buen día, gracias por llamar a Banco Altur. Le atiende Marina. Le comento que esta
+[4.8s] AGENTE: llamada se graba para fines de calidad. ¿En qué le puedo ayudar?
+[8.1s] AGENTE: Claro que sí, con gusto le apoyo con esto. ¿Me puede decir su nombre, por favor?
+[9.1s] PERSONA: Buenas noches, me están cobrando un seguro que no recuerdo haber contratado y me gustaría cancelarlo, por favor.
+[20.1s] AGENTE: Y si recuerda, ¿desde cuándo empezó a haber ese cargo del seguro en su cuenta?
+[24.5s] AGENTE: Gracias, señor Héctor. Para poder avanzar, ¿me puede proporcionar su
+[25.3s] PERSONA: Claro, mi nombre es Héctor Navarro Salcedo y recuerdo haber notado el cargo hace tres meses en junio.
+[31.3s] PERSONA: Claro, 2284-5506. No, 06. Le aparece simplemente como un seguro y aparece de 189 pesos siempre y mensualmente.
+[35.5s] AGENTE: número de referencia de cliente, por favor? ¿Es el que aparece en su
+[38.5s] AGENTE: estado de cuenta o en su app del banco? Perfecto, permítame confirmarle.
+[47.7s] AGENTE: 2284-5507. ¿Así es? Ah, gracias por corregirme, señor Héctor. Ahora, me
+[56.5s] AGENTE: puede platicar un poquito más. ¿Ha notado si el cargo del seguro es
+[59.5s] AGENTE: siempre el mismo monto o varía cada mes? ¿Recuerda el nombre del seguro o
+[63.8s] AGENTE: cómo aparece en su estado de cuenta? Perdón que lo interrumpa, señor Héctor.
+[73.7s] AGENTE: Mencionó que el cargo es de 189 pesos y aparece cada mes, ¿verdad? Está bien,
+[78.3s] AGENTE: ya lo tengo aquí anotado. ¿Esto es sobre su cuenta Nomina Plus o sobre
+[78.9s] PERSONA: Sobre mi crédito verde.
+[82.4s] AGENTE: Ok. Me confirma, por favor, su número de referencia completo. Así como me lo dio
+[92.1s] AGENTE: 2284-5506. ¿Es correcto? Gracias, señor Héctor.
+[97.3s] PERSONA: Sí, es correcto. ¿Cuándo tendría la devolución?
+[99.3s] PERSONA: En el caso de que no proceda mi reembolso y me gustaría apelar aún más o escalar este caso con quien podría comunicarme.
+[100.9s] AGENTE: Quedó registrado su reporte para la cancelación del seguro con cargo
+[104.3s] AGENTE: mensual de 189 pesos en su crédito verde. El folio es 741258. La
+[110.3s] AGENTE: cancelación aplica a partir del siguiente periodo y si procede algún
+[113.8s] AGENTE: reembolso, el área de aclaraciones lo revisa y le dan respuesta en un
+[117.2s] AGENTE: plazo de hasta 10 días hábiles. ¿Hay algo más en lo que le pueda ayudar hoy? Si
+[126.5s] PERSONA: Si me gustaría irme directamente con la Conducef, ¿tú me podrías ayudar a generar la demanda?
+[128.1s] AGENTE: después de la respuesta no está de acuerdo con el resultado, puede pedir una
+[131.7s] AGENTE: segunda revisión del caso aquí mismo o bien acudir directamente a la
+[135.5s] AGENTE: unidad especializada de atención a usuarios del banco, que es el área
+[139.0s] AGENTE: que revisa inconformidades. También tiene la opción de acudir a la
+[142.2s] AGENTE: Conducef para una queja formal, aunque normalmente primero se revisa
+[145.9s] AGENTE: internamente. Le gustaría que le registre desde ahora la solicitud de
+[149.4s] AGENTE: segunda revisión en caso de que no reciba el reembolso o prefiere
+[152.5s] AGENTE: esperar la primera respuesta. ¿Entiendo señor Héctor? Aquí en Banco
+[162.8s] AGENTE: Altur sólo podemos registrar y dar seguimiento a su aclaración interna,
+[166.6s] AGENTE: pero si usted desea acudir directamente a la Conducef, ellos lo atienden de
+[170.4s] AGENTE: manera gratuita y puede presentar la queja directamente en su portal o en
+[174.5s] AGENTE: sus oficinas. Si necesita el folio de su reporte para anexarlo es el
+[177.9s] AGENTE: 741258. ¿Hay algo más en lo que le pueda apoyar? Si no le agradezco su
+[182.9s] AGENTE: llamada y le deseo excelente noche.

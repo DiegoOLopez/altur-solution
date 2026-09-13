@@ -223,7 +223,55 @@ ese momento.
   información entre splits (varios segmentos de la misma llamada son muy
   parecidos entre sí).
 
-## 10. Extensiones no incluidas (fuera de alcance de este repo)
+## 10. Aumento de datos (augmentación) sin inventar llamadas
+
+Con un dataset de un par de cientos/miles de llamadas, el modelo puede
+sobreajustarse a las condiciones de grabación concretas de esas llamadas
+(un micrófono, una red, un nivel de ruido de fondo) en vez de aprender lo
+que realmente distingue voz humana de sintética. La respuesta NO es
+generar llamadas falsas (contenido, hablantes o texto que no existen —
+eso introduciría información fabricada), sino generar variantes
+realistas de CANAL/ENTORNO de las llamadas reales ya etiquetadas: ruido a
+distinto SNR, ancho de banda tipo telefonía fija, códec mu-law, pérdida
+de paquetes VoIP, reverberación leve, cambios de ganancia
+(`preprocessing/augmentation.py`).
+
+Dos reglas de diseño no negociables:
+
+- **Solo se perturba canal/entorno, nunca la voz en sí.** No se usa
+  pitch-shift ni time-stretch: esas transformaciones alterarían
+  jitter/shimmer y la coherencia de fase armónica, que son justo las
+  features que el sistema usa para distinguir humano de sintético.
+  Augmentar así podría borrar la señal que se quiere detectar.
+- **Las variantes nunca se usan para validar, solo para entrenar cada
+  fold**, y comparten el `group_id` de la llamada original para el
+  shrinkage de varianza (sección 3.1 de este documento): se tratan como
+  más evidencia de la MISMA llamada, no como llamadas independientes
+  nuevas — si se contaran como independientes, la varianza estimada entre
+  llamadas se subestimaría, exactamente el sesgo que ese shrinkage existe
+  para evitar.
+
+## 11. Validación cruzada repetida (estabilidad, no "más épocas")
+
+Este modelo no se entrena por descenso de gradiente — no hay "épocas" que
+iterar. La forma correcta de "iterar más" aquí es repetir la validación
+cruzada con particiones distintas del dataset y ver qué tan estable es el
+resultado. Cada repetición es un k-fold estratificado por llamada
+independiente (semilla distinta) que cubre el 100% de las llamadas
+exactamente una vez (out-of-fold). El score final por llamada es el
+promedio entre repeticiones, y se reporta además la media ± desviación
+estándar del AUC de cada repetición individual: esa desviación es la
+métrica de estabilidad real. Un AUC alto en una sola partición no dice
+nada si esa misma métrica se mueve mucho de una partición a otra — con
+cientos de llamadas eso es exactamente lo que puede pasar, y reportarlo
+explícitamente evita una falsa sensación de certeza.
+
+Junto con esto se reportan métricas de calibración (Brier score, ECE) y
+un intervalo de confianza por bootstrap del AUC (remuestreo por llamada):
+el producto entrega una CONFIANZA en [0,1], no solo un veredicto binario,
+así que qué tan honesta es esa confianza importa tanto como el accuracy.
+
+## 12. Extensiones no incluidas (fuera de alcance de este repo)
 
 - Bloque semántico (requeriría ASR + comparación de consistencia).
 - Bloque de canal/telefonía (artefactos de doble compresión, piso de
