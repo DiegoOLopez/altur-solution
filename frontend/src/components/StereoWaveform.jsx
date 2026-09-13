@@ -209,10 +209,10 @@ export default function StereoWaveform({ channel0, channel1, duration, isSynthet
 
   const stopPlayback = () => {
     if (sourceNodeRef.current) {
-      try { sourceNodeRef.current.stop(); } catch (e) {}
+      try { sourceNodeRef.current.stop(); } catch (e) { }
     }
     if (audioContextRef.current) {
-      try { audioContextRef.current.close(); } catch (e) {}
+      try { audioContextRef.current.close(); } catch (e) { }
     }
     setIsPlaying(false);
     cancelAnimationFrame(animationFrameRef.current);
