@@ -28,7 +28,7 @@ Cliente (Frontend / API REST / WebSocket)
 - **FastAPI**: Framework web principal.
 - **Uvicorn**: Servidor ASGI.
 - **SQLAlchemy & Alembic**: ORM y migraciones de base de datos MySQL.
-- **MinIO (minio-py)**: Almacenamiento de objetos S3 compatible para archivos `.wav` y `.pkl`.
+- **MinIO (minio-py)**: Almacenamiento de objetos S3 compatible para archivos `.wav` y `.joblib`.
 - **Joblib, NumPy, SciPy, scikit-learn**: Carga de modelos de IA (Pipeline de Densidades y Stacking) y procesamiento matricial.
 - **Librosa & Soundfile**: Procesamiento y resampling de audio.
 - **Silero VAD / SpeechBrain**: Detección de actividad de voz y embeddings.
@@ -149,5 +149,5 @@ El backend también expone endpoints para el módulo de reentrenamiento continuo
 - `GET /review/stats`: Estadísticas de revisión y reentrenamiento.
 - `GET /review/audios/{id}/stream`: Stream del audio directamente desde MinIO para el reproductor.
 - `PATCH /review/audios/{id}/classification`: Etiquetar un audio manualmente (`synthetic` o `real`).
-- `POST /review/train`: Reentrena un modelo nuevo desde cero fusionando el modelo actual con las nuevas etiquetas manuales, guarda el binario `.pkl` en MinIO y registra las métricas en MySQL.
+- `POST /review/train`: Reentrena un modelo nuevo desde cero fusionando el modelo actual con las nuevas etiquetas manuales, guarda el binario `.joblib` en MinIO y registra las métricas en MySQL.
 - `WS /ws/call`: Conexión WebSocket para el streaming en vivo (utilizado en el Simulador).

@@ -6,7 +6,7 @@ Flujo:
   2. Se consultan los audios clasificados (status='revisado') de MySQL
   3. Se descargan los WAVs desde MinIO
   4. Se ejecuta el pipeline completo de fit_densities (reentrenamiento de 0)
-  5. Se guarda el nuevo .pkl en MinIO
+  5. Se guarda el nuevo .joblib en MinIO
   6. Se registra el modelo en la tabla trained_models
   7. Se responde con las métricas del entrenamiento
 """
@@ -38,16 +38,12 @@ DETECTOR_ROOT = Path(__file__).resolve().parents[5] / "detector"
 if str(DETECTOR_ROOT) not in sys.path:
     sys.path.insert(0, str(DETECTOR_ROOT))
 
-from features.acoustic import segment_features
-from features.behavioral import behavioral_event_features
-from preprocessing.diarization import diarize_stereo
-from model.pipeline import (
-    VoiceAuthenticityDetector,
-    load_wav_any,
-    split_channels,
-    SEGMENT_SECONDS,
-)
-from model.calibration import choose_threshold_youden
+import torch
+import torchaudio
+import soundfile as sf
+from transformers import Wav2Vec2Processor, Wav2Vec2Model
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report
 
 # ==========================================================
 # MinIO
@@ -205,40 +201,32 @@ def download_wav_from_minio(storage_key: str) -> bytes:
     return data
 
 
-def extract_call_features(wav_bytes: bytes):
-    """Extrae features acústicas y comportamentales de un WAV."""
-    signal, sr = load_wav_any(wav_bytes)
-    caller, agent = split_channels(signal)
+def extract_wav2vec_features(wav_bytes: bytes, processor, model, device):
+    """Extrae features de Wav2Vec2 de un WAV."""
+    data, sr = sf.read(io.BytesIO(wav_bytes), dtype='float32')
+    if data.ndim > 1:
+        data = data[:, 0]
 
-    # Diarización automática si es estéreo
-    if agent is not None:
-        turns = diarize_stereo(signal, sr)
-    else:
-        turns = []
+    waveform = torch.from_numpy(data).float()
+    if waveform.ndim == 1:
+        waveform = waveform.unsqueeze(0)
 
-    # Features acústicas por segmento de 1s
-    seg_len = int(SEGMENT_SECONDS * sr)
-    n_segments = max(len(caller) // seg_len, 0)
-    X_a = (
-        np.array(
-            [
-                segment_features(caller[i * seg_len : (i + 1) * seg_len], sr)
-                for i in range(n_segments)
-            ]
-        )
-        if n_segments
-        else np.empty((0, 1))
-    )
+    if sr != 16000:
+        resampler = torchaudio.transforms.Resample(orig_freq=sr, new_freq=16000)
+        waveform = resampler(waveform)
 
-    # Features comportamentales
-    behavioral = behavioral_event_features(turns) if turns else []
-    X_b = (
-        np.array([x for _, x in behavioral])
-        if behavioral
-        else np.empty((0, 1))
-    )
+    if waveform.shape[1] > 48000:
+        waveform = waveform[:, :48000]
 
-    return X_a, X_b
+    inputs = processor(waveform.squeeze().numpy(), sampling_rate=16000, return_tensors="pt")
+    inputs = {k: v.to(device) for k, v in inputs.items()}
+
+    with torch.no_grad():
+        outputs = model(**inputs, output_hidden_states=True)
+        hidden_states = outputs.hidden_states[4]
+        features = hidden_states.mean(dim=1).squeeze().cpu().numpy()
+
+    return features
 
 
 @router.post("/train", response_model=TrainStartResponse, status_code=202)
@@ -310,7 +298,7 @@ def train_model_job(
     # 2. Crear registro del modelo con status TRAINING
     # ==========================================================
     session_id = uuid.uuid4().hex
-    storage_key = f"modelos/model_{session_id}.pkl"
+    storage_key = f"modelos/model_{session_id}.joblib"
 
     nuevo_modelo = TrainedModel(
         ref=session_id,
@@ -334,6 +322,11 @@ def train_model_job(
         # ==========================================================
         # 3. Descargar WAVs y extraer features
         # ==========================================================
+        device = torch.device("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
+        processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base")
+        wav2vec_model = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-base").to(device)
+        wav2vec_model.eval()
+
         per_call = {}
         labels = []
 
@@ -349,10 +342,9 @@ def train_model_job(
             print(f"   [{i + 1}/{len(reviewed_audios)}] Descargando {audio_record.storage_key}...")
             wav_bytes = download_wav_from_minio(audio_record.storage_key)
 
-            X_a, X_b = extract_call_features(wav_bytes)
+            features = extract_wav2vec_features(wav_bytes, processor, wav2vec_model, device)
             per_call[i] = {
-                "X_a": X_a,
-                "X_b": X_b,
+                "features": features,
                 "label": label,
                 "title": audio_record.title,
             }
@@ -361,11 +353,6 @@ def train_model_job(
                 nuevo_modelo,
                 5 + int(((i + 1) / len(reviewed_audios)) * 55),
                 f"Procesando audio {i + 1} de {len(reviewed_audios)}",
-            )
-
-            print(
-                f"       → {X_a.shape[0]} segmentos acústicos, "
-                f"{X_b.shape[0]} eventos comportamentales"
             )
 
         # ==========================================================
@@ -393,103 +380,18 @@ def train_model_job(
         print(f"   Split: train={len(idx_train)} val={len(idx_val)}")
 
         # ==========================================================
-        # 5. Crear nuevo detector y ajustar densidades
+        # 5. Crear nuevo detector y ajustar
         # ==========================================================
         if training_was_cancelled(db, nuevo_modelo.id):
             return
 
         update_training_progress(db, nuevo_modelo, 65, "Ajustando detector")
-        detector = VoiceAuthenticityDetector()
-        detector.prior_h1 = 0.3
 
-        # Agrupar features por clase (solo TRAIN)
-        train_h0_a, train_h1_a = [], []
-        train_h0_b, train_h1_b = [], []
+        X_train = np.array([per_call[i]["features"] for i in idx_train])
+        y_train = np.array([per_call[i]["label"] for i in idx_train])
 
-        for i in idx_train:
-            d = per_call[i]
-            target_a = train_h1_a if d["label"] == 1 else train_h0_a
-            target_b = train_h1_b if d["label"] == 1 else train_h0_b
-            if d["X_a"].shape[1] > 1:
-                target_a.extend(d["X_a"])
-            if d["X_b"].shape[1] > 1:
-                target_b.extend(d["X_b"])
-
-        def stack_or_zeros(rows, n_dims):
-            return np.array(rows) if rows else np.zeros((2, n_dims))
-
-        n_dim_a = next(
-            (d["X_a"].shape[1] for d in per_call.values() if d["X_a"].shape[1] > 1),
-            len(detector.acoustic_block.feature_names),
-        )
-        n_dim_b = next(
-            (d["X_b"].shape[1] for d in per_call.values() if d["X_b"].shape[1] > 1),
-            len(detector.behavioral_block.feature_names),
-        )
-
-        detector.acoustic_block.fit(
-            stack_or_zeros(train_h0_a, n_dim_a),
-            stack_or_zeros(train_h1_a, n_dim_a),
-        )
-        detector.behavioral_block.fit(
-            stack_or_zeros(train_h0_b, n_dim_b),
-            stack_or_zeros(train_h1_b, n_dim_b),
-        )
-
-        print(
-            f"   Densidades: acústico h0={len(train_h0_a)} h1={len(train_h1_a)} | "
-            f"comportamental h0={len(train_h0_b)} h1={len(train_h1_b)}"
-        )
-
-        # ==========================================================
-        # 6. Calcular LLR por llamada y ajustar stacking
-        # ==========================================================
-        def call_llrs(d):
-            llr_a = (
-                sum(detector.acoustic_block.llr(x) for x in d["X_a"])
-                if d["X_a"].shape[1] > 1
-                else 0.0
-            )
-            llr_b = (
-                sum(detector.behavioral_block.llr(x) for x in d["X_b"])
-                if d["X_b"].shape[1] > 1
-                else 0.0
-            )
-            return llr_a, llr_b
-
-        all_llr_a, all_llr_b, all_y = [], [], []
-        for i in range(n_calls):
-            d = per_call[i]
-            llr_a, llr_b = call_llrs(d)
-            all_llr_a.append(llr_a)
-            all_llr_b.append(llr_b)
-            all_y.append(d["label"])
-
-        all_llr_a = np.array(all_llr_a)
-        all_llr_b = np.array(all_llr_b)
-        all_y = np.array(all_y)
-
-        train_mask = np.zeros(n_calls, dtype=bool)
-        train_mask[list(idx_train)] = True
-
-        # Ajustar stacking logístico sobre TRAIN
-        detector.calibrator.fit(
-            all_llr_a[train_mask],
-            all_llr_b[train_mask],
-            all_y[train_mask],
-        )
-
-        # ==========================================================
-        # 7. Elegir umbral eta sobre VAL
-        # ==========================================================
-        val_scores = all_llr_a[~train_mask] + all_llr_b[~train_mask]
-        val_y = all_y[~train_mask]
-
-        if len(val_scores) > 0 and len(np.unique(val_y)) > 1:
-            detector.eta = choose_threshold_youden(val_scores, val_y)
-        else:
-            # Fallback: usar 0
-            detector.eta = 0.0
+        detector = LogisticRegression(max_iter=1000, C=0.1, class_weight='balanced')
+        detector.fit(X_train, y_train)
 
         # ==========================================================
         # 8. Métricas de validación
@@ -497,17 +399,23 @@ def train_model_job(
         val_accuracy = None
         val_auc = None
 
-        if len(val_scores) > 0 and len(np.unique(val_y)) > 1:
-            val_pred = (val_scores > detector.eta).astype(int)
+        if len(idx_val) > 0 and len(np.unique(labels_arr[idx_val])) > 1:
+            X_val = np.array([per_call[i]["features"] for i in idx_val])
+            y_val = np.array([per_call[i]["label"] for i in idx_val])
+
+            val_scores = detector.predict_proba(X_val)[:, 1]
+            val_pred = detector.predict(X_val)
+
             try:
-                val_auc = float(roc_auc_score(val_y, val_scores))
+                val_auc = float(roc_auc_score(y_val, val_scores))
             except ValueError:
                 val_auc = None
-            val_accuracy = float(accuracy_score(val_y, val_pred))
-            cm = confusion_matrix(val_y, val_pred, labels=[0, 1])
+            val_accuracy = float(accuracy_score(y_val, val_pred))
+            cm = confusion_matrix(y_val, val_pred, labels=[0, 1])
         else:
             cm = None
 
+        detector.eta = 0.5 # Default probability threshold
         train_report = {
             "n_calls_total": n_calls,
             "n_train": len(idx_train),
@@ -518,10 +426,7 @@ def train_model_job(
             "val_auc": val_auc,
             "val_accuracy": val_accuracy,
             "val_confusion_matrix": cm.tolist() if cm is not None else None,
-            "stacking_weights": detector.calibrator.weights,
         }
-
-        detector.train_report = train_report
 
         print(f"   eta={detector.eta:.3f}")
         if val_accuracy is not None:

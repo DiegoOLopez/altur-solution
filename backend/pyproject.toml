@@ -24,6 +24,8 @@ dependencies = [
     "speechbrain>=1.1.1",
     "sqlalchemy>=2.0.52",
     "torch>=2.14.0",
+    "torchaudio>=2.11.0",
+    "transformers>=5.17.0",
     "uvicorn[standard]>=0.52.4",
 ]
 

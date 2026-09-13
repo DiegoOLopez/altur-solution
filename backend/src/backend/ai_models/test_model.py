@@ -31,7 +31,7 @@ if str(DETECTOR_ROOT) not in sys.path:
 
 # Ruta del modelo entrenado.
 MODEL_PATH = (
-    Path(__file__).resolve().parent / "model.pkl"
+    Path(__file__).resolve().parent / "altur_detector_model.pkl"
 )
 
 

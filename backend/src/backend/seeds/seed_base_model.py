@@ -1,5 +1,5 @@
 """
-Registra el modelo base (model.pkl) en la tabla trained_models.
+Registra el modelo base (altur_detector_model.joblib) en la tabla trained_models.
 
 Uso:
     uv run python -m src.backend.seeds.seed_base_model
@@ -27,7 +27,7 @@ def seed():
     base_model = TrainedModel(
         ref=uuid.uuid4().hex,
         name="Vocalis / base-01",
-        storage_key="modelos/model.pkl",
+        storage_key="modelos/altur_detector_model.joblib",
         n_samples_human=0,
         n_samples_synthetic=0,
         val_accuracy=None,

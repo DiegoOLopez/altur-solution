@@ -61,6 +61,7 @@ async def detect_audio(payload: DetectionJsonRequest):
         )
 
     try:
+        print("Modelo 1 _ 2")
         audio_bytes = base64.b64decode(payload.audio_base64, validate=True)
     except (binascii.Error, ValueError) as exc:
         raise HTTPException(
