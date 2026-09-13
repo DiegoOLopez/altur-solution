@@ -266,7 +266,7 @@ export default function ReviewHub() {
         <>
           <p className="review-modal-copy">Dale un nombre para reconocerlo fácilmente cuando esté listo.</p>
           {error && <p className="review-error-message" style={{marginBottom: '1rem'}}>{error}</p>}
-          <form onSubmit={submitTraining}><label htmlFor="review-model-name">Nombre del modelo</label><div className="review-input-wrap"><input id="review-model-name" ref={inputRef} value={modelName} onChange={(event) => setModelName(event.target.value)} placeholder="Ej. Vocalis primavera" disabled={isTraining} /><span><CornerDownLeft size={13} />Enter</span></div><button className="review-primary-button review-modal-submit" type="submit" disabled={isTraining || !modelName.trim()}>{isTraining ? 'Entrenando...' : 'Comenzar entrenamiento'} <Sparkles size={16} /></button></form>
+          <form onSubmit={submitTraining}><label htmlFor="review-model-name">Nombre del modelo</label><div className="review-input-wrap"><input id="review-model-name" ref={inputRef} value={modelName} onChange={(event) => setModelName(event.target.value)} placeholder="Ej. Vocalis primavera" disabled={isTraining} /><span><CornerDownLeft size={13} />Intro</span></div><button className="review-primary-button review-modal-submit" type="submit" disabled={isTraining || !modelName.trim()}>{isTraining ? 'Entrenando...' : 'Comenzar entrenamiento'} <Sparkles size={16} /></button></form>
         </>
       )}
     </section></div>}

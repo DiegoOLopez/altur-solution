@@ -179,7 +179,7 @@ export default function ResponseTiming({
               marginBottom: '5px'
             }}
           >
-            Score total
+            Puntuación total
           </div>
 
           <div

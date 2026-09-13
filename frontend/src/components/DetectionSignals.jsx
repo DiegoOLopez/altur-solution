@@ -261,7 +261,7 @@ export default function DetectionSignals({
               />
             )}
 
-            Score final
+            Puntuación final
           </span>
 
           <span

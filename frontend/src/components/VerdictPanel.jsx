@@ -25,8 +25,8 @@ export default function VerdictPanel({ result, isAnalyzing, activeMode }) {
         <div>
           <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--altur-black)' }}>
             {activeMode === 'streaming'
-              ? 'Procesando streaming en POST /detect_streaming...'
-              : 'Ejecutando inferencia en POST /detect...'}
+              ? 'Procesando transmisión en POST /detectar_en_vivo...'
+              : 'Ejecutando inferencia en POST /detectar...'}
           </h3>
           <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
             Extrayendo artefactos espectrales, latencia de interrupción y consistencia semántica...
@@ -101,7 +101,7 @@ export default function VerdictPanel({ result, isAnalyzing, activeMode }) {
             Veredicto Pendiente
           </h3>
           <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', marginTop: '4px', lineHeight: 1.5, maxWidth: '420px' }}>
-            Selecciona o sube un audio del llamante y ejecuta POST /detect
+            Selecciona o sube un audio del llamante y ejecuta POST /detectar
             para obtener la clasificación del modelo.
           </p>
         </div>
@@ -147,7 +147,7 @@ export default function VerdictPanel({ result, isAnalyzing, activeMode }) {
           </div>
         </div>
         <span className={`altur-badge ${isSynthetic ? 'badge-rose' : 'badge-emerald'}`}>
-          {isSynthetic ? 'POST /detect → sintética' : 'POST /detect → humana'}
+          {isSynthetic ? 'POST /detectar → sintética' : 'POST /detectar → humana'}
         </span>
       </div>
 

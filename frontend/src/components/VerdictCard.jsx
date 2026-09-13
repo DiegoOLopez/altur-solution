@@ -65,7 +65,7 @@ export default function VerdictCard({ result, isAnalyzing }) {
             onClick={() => setShowJson(!showJson)}
           >
             <Code2 size={12} />
-            POST /detect JSON
+            POST /detectar JSON
           </button>
         </div>
       </div>
@@ -179,7 +179,7 @@ export default function VerdictCard({ result, isAnalyzing }) {
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
             <span style={{ fontSize: '0.75rem', color: '#00f2fe', fontWeight: 600 }}>
-              Respuesta del Endpoint Oficial POST /detect:
+              Respuesta del Endpoint Oficial POST /detectar:
             </span>
             <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>application/json</span>
           </div>

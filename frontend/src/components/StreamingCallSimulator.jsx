@@ -220,7 +220,7 @@ export default function StreamingCallSimulator({
     <div className="review-hub">
       <section className="review-intro">
         <div>
-          <p className="review-eyebrow"><span />Live Call Simulator</p>
+          <p className="review-eyebrow"><span />Simulador de Llamada en Vivo</p>
           <h1>Centro de<br /><em>monitoreo.</em></h1>
           <p className="review-intro-copy">Inicia una llamada simulada para probar el detector de fraude en tiempo real.</p>
         </div>
@@ -247,7 +247,7 @@ export default function StreamingCallSimulator({
         </section>
 
         <section className="sim-card" style={{ gridArea: 'backend' }}>
-          <div className="sim-card-header"><Server size={16} /> Backend</div>
+          <div className="sim-card-header"><Server size={16} /> Servidor</div>
           <div className="sim-card-content" style={{ textAlign: 'center', justifyContent: 'center' }}>
             <div className={`sim-status ${isConnected ? 'connected' : 'disconnected'}`}>
               <Wifi size={24} />
@@ -306,7 +306,7 @@ export default function StreamingCallSimulator({
                   <span className="sim-metric-value">{detection.n_acoustic_segments ?? detection.segments_analyzed ?? "-"}</span>
                 </div>
                 <div className="sim-metric">
-                  <span className="sim-metric-label">Score</span>
+                  <span className="sim-metric-label">Puntuación</span>
                   <span className="sim-metric-value">{detection.score_total ?? "-"}</span>
                 </div>
               </div>

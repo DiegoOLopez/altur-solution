@@ -33,7 +33,6 @@ export default function Navbar({ activeMode, setActiveMode }) {
           >
             <FileAudio size={16} />
             <span>Análisis Forense</span>
-            <span className="font-mono" style={{ fontSize: '0.7rem', opacity: 0.65 }}>/detect</span>
           </button>
 
           <button
@@ -49,8 +48,7 @@ export default function Navbar({ activeMode, setActiveMode }) {
             onClick={() => setActiveMode('streaming')}
           >
             <PhoneCall size={16} />
-            <span>Live Call</span>
-            <span className="font-mono" style={{ fontSize: '0.7rem', opacity: 0.65 }}>/detect_streaming</span>
+            <span>Llamada en Vivo</span>
           </button>
         </div>
       </div>
