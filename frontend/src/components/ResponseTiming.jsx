@@ -1,3 +1,9 @@
+/**
+ * AuraVoice - Tiempos de Respuesta (ResponseTiming.jsx)
+ * 
+ * Visualiza el análisis de la latencia de turnos y las interrupciones,
+ * que forman parte de la evidencia comportamental evaluada por el modelo.
+ */
 import React from 'react';
 import {
   MessageSquare,

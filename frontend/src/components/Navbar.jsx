@@ -1,3 +1,11 @@
+/**
+ * AuraVoice - Barra de Navegación (Navbar.jsx)
+ * 
+ * Menú principal que permite alternar entre las tres vistas de la aplicación:
+ * - Detección Forense (Batch)
+ * - Simulación en Vivo (Streaming)
+ * - Centro de Revisión (Review Hub)
+ */
 import React from 'react';
 import ChameleonLogo from './ChameleonLogo';
 import { PhoneCall, FileAudio, ListChecks } from 'lucide-react';

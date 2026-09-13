@@ -1,3 +1,11 @@
+/**
+ * AuraVoice - Panel de Veredicto (VerdictPanel.jsx)
+ * 
+ * Muestra el resultado de la detección (tanto para análisis batch como
+ * streaming). Visualiza el veredicto (Humano / Sintético), la confianza
+ * del modelo, el desglose de evidencias (LLR acústico y comportamental)
+ * y una conclusión semántica explicativa generada para el usuario.
+ */
 import React from 'react';
 import { ShieldCheck, ShieldAlert, ShieldQuestion, AlertOctagon, Waves, Clock, MessageSquareQuote, Sparkles } from 'lucide-react';
 import ChameleonLogo from './ChameleonLogo';

@@ -1,3 +1,10 @@
+/**
+ * AuraVoice - Espectrograma (Spectrogram.jsx)
+ * 
+ * Dibuja un espectrograma (frecuencia vs. tiempo) utilizando la matriz de
+ * magnitudes calculada por computeSpectrogram (STFT). Sirve para buscar
+ * visualmente artefactos de síntesis (como bandas de frecuencia planas).
+ */
 import React, { useMemo, useRef, useEffect } from 'react';
 import { Activity } from 'lucide-react';
 import { computeSpectrogram } from '../utils/audioUtils';

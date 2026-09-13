@@ -1,3 +1,11 @@
+/**
+ * AuraVoice - Componente de Ingesta (BatchInput.jsx)
+ * 
+ * Interfaz para la subida de archivos WAV en el modo de análisis forense (lote).
+ * Permite arrastrar y soltar archivos de audio, validando y mostrando el
+ * proceso de ingesta y validación de formato (8 kHz, 16-bit PCM, estéreo)
+ * mediante el componente ForensicPipeline.
+ */
 import React, { useRef, useState, useEffect } from 'react';
 import { UploadCloud } from 'lucide-react';
 

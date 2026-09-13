@@ -1,3 +1,15 @@
+/**
+ * AuraVoice - Componente Principal (App.jsx)
+ * 
+ * Controla el estado global de la aplicación y el enrutamiento interno
+ * entre las tres vistas principales:
+ * - Análisis forense (Batch)
+ * - Simulación en vivo (Streaming)
+ * - Centro de Revisión (Review Hub)
+ * 
+ * Gestiona el envío del audio seleccionado al backend (POST /detect_wav)
+ * y almacena el historial local de análisis en la sesión.
+ */
 import { useRef, useState } from 'react';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import Navbar from './components/Navbar';
@@ -12,12 +24,14 @@ import CallHistory from './components/CallHistory';
 import ReviewHub from './components/ReviewHub';
 import { callDetectApi } from './utils/audioUtils';
 
+// URL base de la API backend. Por defecto localhost:8000
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') ||
   'http://localhost:8000';
 
 export default function App() {
-  const [activeMode, setActiveMode] = useState('batch');
+  // Estado global de la interfaz
+  const [activeMode, setActiveMode] = useState('batch'); // 'batch', 'streaming', 'review'
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [activeAudio, setActiveAudio] = useState(null);
   const [analysisResult, setAnalysisResult] = useState(null);
@@ -27,12 +41,11 @@ export default function App() {
   // Título de la última llamada en vivo (para armar el registro del historial).
   const currentTitleRef = useRef('');
 
-  // Selección de audio en modo batch (POST /detect).
+  // Selección de audio en modo batch. Disparado por BatchInput.
   const handleAudioReady = (audioData) => {
     setActiveAudio(audioData);
 
-    // El nuevo audio todavía no ha sido analizado.
-    // No mostramos ningún resultado previo o simulado.
+    // Limpiamos resultados anteriores al cargar un nuevo audio
     setAnalysisResult(null);
     setVerdictFor(null);
   };
@@ -42,11 +55,10 @@ export default function App() {
     if (!activeAudio) return;
 
     setIsAnalyzing(true);
-
     const startTime = performance.now();
 
     try {
-      // Enviar el WAV al backend
+      // Enviar el WAV Base64 al backend
       const data = await callDetectApi(
         API_BASE,
         activeAudio.base64
@@ -56,30 +68,19 @@ export default function App() {
         performance.now() - startTime
       );
 
-      // Resultado REAL del modelo
+      // Mapear la respuesta real del modelo al estado de la UI
       const res = {
         is_synthetic: data.is_synthetic,
         confidence: data.confidence,
-
-        // Latencia real de la petición HTTP
         latency_ms: latency,
-
-        // Evidencia generada por el modelo
         score_total: data.score_total,
         llr_acoustic_cum: data.llr_acoustic_cum,
         llr_behavioral_cum: data.llr_behavioral_cum,
-
-        // Cantidad real de elementos analizados
         n_acoustic_segments: data.n_acoustic_segments,
         n_behavioral_events: data.n_behavioral_events,
-
-        // Umbral utilizado por el detector
         eta: data.eta,
-
-        // Respuesta original del backend
         apiResponse: data,
-
-        // Explicación basada únicamente en el resultado real
+        // Generar una explicación para la UI
         llm_conclusion: data.is_synthetic
           ? `El detector clasificó la llamada como voz sintética con una confianza de ${(data.confidence * 100).toFixed(1)}%. El resultado se obtiene a partir de la evidencia acústica y comportamental acumulada por el modelo.`
           : `El detector clasificó la llamada como voz humana con una confianza de ${(data.confidence * 100).toFixed(1)}%. El resultado se obtiene a partir de la evidencia acústica y comportamental acumulada por el modelo.`
@@ -87,33 +88,22 @@ export default function App() {
 
       setAnalysisResult(res);
       setVerdictFor(activeAudio.title);
+      addHistoryItem(res, activeAudio.title);
 
-      addHistoryItem(
-        res,
-        activeAudio.title
-      );
     } catch (err) {
-      console.error(
-        'Error calling POST /detect_wav:',
-        err
-      );
-
-      // No utilizar mock si falla el backend.
+      console.error('Error calling POST /detect_wav:', err);
+      // Manejar error de conexión
       setAnalysisResult({
         error: true,
-        errorMessage:
-          err?.message ||
-          'No se pudo completar el análisis.'
+        errorMessage: err?.message || 'No se pudo completar el análisis.'
       });
-
       setVerdictFor(activeAudio.title);
     } finally {
       setIsAnalyzing(false);
     }
   };
 
-  // Actualización en vivo del modo streaming (POST /detect_streaming).
-  // Se conserva el flujo existente de streaming.
+  // Actualización en vivo del modo streaming.
   const handleStreamingUpdate = async (streamData) => {
     setAnalysisResult((prev) => ({
       ...prev,
@@ -133,7 +123,7 @@ export default function App() {
     }));
   };
 
-  // Fin de la llamada streaming: se construye el resultado final.
+  // Fin de la llamada streaming: armar el registro para el historial local.
   const handleCallFinished = (summary) => {
     const finalResult = {
       is_synthetic: summary.isSynthetic,
@@ -150,10 +140,8 @@ export default function App() {
         semantic_hallucination: summary.isSynthetic
       },
       llm_conclusion: summary.isSynthetic
-        ? `ALERTA DEEPFAKE EN LLAMADA STREAMING (POST /detect_streaming):
-Durante la llamada de ${summary.duration} segundos, se detectó una frecuencia neural plana a 3.8 kHz y latencias invariables de 180ms al responder a las interrupciones del agente. Se recomienda abortar la operación bancaria.`
-        : `LLAMADA STREAMING AUTÉNTICA (POST /detect_streaming):
-La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosódica natural, respiraciones audibles y fluidez orgánica. Canal telefónico 100% verificado.`
+        ? `ALERTA DEEPFAKE EN LLAMADA STREAMING:\nDurante la llamada de ${summary.duration} segundos, se detectó una frecuencia neural plana a 3.8 kHz y latencias invariables al responder a las interrupciones del agente.`
+        : `LLAMADA STREAMING AUTÉNTICA:\nLa llamada en vivo de ${summary.duration} segundos presentó variabilidad prosódica natural y fluidez orgánica.`
     };
 
     setAnalysisResult(finalResult);
@@ -167,16 +155,16 @@ La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosó
     addHistoryItem(finalResult, title);
   };
 
-  // Resultado de la grabación en vivo: título y audio capturados.
+  // Guardar el título al finalizar una grabación del micrófono.
   const handleRecordingResult = (recording) => {
     currentTitleRef.current = recording.title;
     setActiveAudio(recording);
     setVerdictFor(null);
   };
 
+  // Añadir un análisis al historial local (hasta 5 items).
   const addHistoryItem = (res, title) => {
     const now = new Date();
-
     const timeStr =
       `${now.getHours().toString().padStart(2, '0')}:` +
       `${now.getMinutes().toString().padStart(2, '0')}:` +
@@ -192,7 +180,7 @@ La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosó
         latency_ms: res.latency_ms || 108,
         resultData: res
       },
-      ...prev.slice(0, 5)
+      ...prev.slice(0, 4) // Guardar solo los últimos 5
     ]);
   };
 
@@ -245,7 +233,7 @@ La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosó
                 </button>
               </section>
 
-              {/* Bento dashboard */}
+              {/* Bento Dashboard con todos los componentes */}
               <div className="fx-bento">
                 <div className="fx-cell-input">
                   <BatchInput
@@ -304,7 +292,7 @@ La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosó
                 </div>
               </div>
 
-              {/* Registro de auditorías */}
+              {/* Historial Local (Solo Batch/Streaming) */}
               <CallHistory
                 history={history}
                 onSelectHistoryItem={(item) => {
@@ -317,6 +305,7 @@ La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosó
             </div>
           ) : (
             <>
+              {/* Modo Streaming */}
               <StreamingCallSimulator
                 onStreamingUpdate={handleStreamingUpdate}
                 onCallFinished={handleCallFinished}
@@ -337,7 +326,7 @@ La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosó
         </main>
       )}
 
-      {/* Footer */}
+      {/* Footer corporativo */}
       <footer
         style={{
           borderTop: '1px solid var(--border-glass)',
@@ -355,7 +344,7 @@ La llamada en vivo de ${summary.duration} segundos presentó variabilidad prosó
         </code>{' '}
         y{' '}
         <code style={{ color: '#ff3366' }}>
-          POST /detect_streaming
+          WS /ws/detect
         </code>
       </footer>
     </div>

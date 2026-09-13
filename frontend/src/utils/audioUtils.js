@@ -6,15 +6,14 @@
  *
  * - WAV estéreo: Canal 0 = Llamante, Canal 1 = Agente.
  * - Sample rate telefónico de 8,000 Hz.
- * - Transmisión al backend como multipart/form-data en POST /detect
- *   (el backend espera el WAV crudo bajo el campo `file`).
+ * - Transmisión al backend como multipart/form-data en POST /detect_wav.
  *
- * También incluye helpers para inspeccionar WAV sin decodificarlos, el
- * espectrograma (STFT) que se dibuja en el frontend y los clientes de API.
+ * También incluye helpers para inspeccionar WAV sin decodificarlos, generar
+ * el espectrograma (STFT) y comunicarse con la API.
  */
 
 // ---------------------------------------------------------------------------
-// WAV encoder (8 kHz, estéreo, PCM 16-bit)
+// Codificador WAV (8 kHz, estéreo, PCM 16-bit)
 // ---------------------------------------------------------------------------
 
 function writeString(view, offset, value) {
@@ -24,7 +23,9 @@ function writeString(view, offset, value) {
 }
 
 /**
- * Encodes an AudioBuffer into an 8kHz 16-bit Stereo PCM WAV ArrayBuffer
+ * Convierte un AudioBuffer del navegador a un ArrayBuffer de WAV 
+ * con formato 8kHz 16-bit PCM Estéreo.
+ * 
  * @param {AudioBuffer} audioBuffer
  * @returns {ArrayBuffer}
  */
@@ -37,7 +38,7 @@ export function encodeStereoWav8kHz(audioBuffer) {
   const byteRate = sampleRate * blockAlign;
 
   const ch0 = audioBuffer.getChannelData(0);
-  // Channel 1 can be either channel 1 of the buffer or an artificial agent reference
+  // El canal 1 puede ser del buffer o un silencio artificial para el agente.
   const ch1 = audioBuffer.numberOfChannels > 1 ? audioBuffer.getChannelData(1) : new Float32Array(ch0.length);
 
   const numSamples = ch0.length;
@@ -45,35 +46,35 @@ export function encodeStereoWav8kHz(audioBuffer) {
   const buffer = new ArrayBuffer(44 + dataSize);
   const view = new DataView(buffer);
 
-  // --- RIFF Header ---
+  // --- Cabecera RIFF ---
   writeString(view, 0, 'RIFF');
   view.setUint32(4, 36 + dataSize, true);
   writeString(view, 8, 'WAVE');
 
-  // --- fmt Subchunk ---
+  // --- Subchunk fmt ---
   writeString(view, 12, 'fmt ');
-  view.setUint32(16, 16, true); // Subchunk1Size (16 for PCM)
-  view.setUint16(20, 1, true);  // AudioFormat (1 for PCM)
+  view.setUint32(16, 16, true); // Subchunk1Size (16 para PCM)
+  view.setUint16(20, 1, true);  // AudioFormat (1 para PCM)
   view.setUint16(22, numChannels, true);
   view.setUint32(24, sampleRate, true);
   view.setUint32(28, byteRate, true);
   view.setUint16(32, blockAlign, true);
   view.setUint16(34, bitsPerSample, true);
 
-  // --- data Subchunk ---
+  // --- Subchunk data ---
   writeString(view, 36, 'data');
   view.setUint32(40, dataSize, true);
 
-  // Interleave Channel 0 (Caller) and Channel 1 (Agent)
+  // Intercalar Canal 0 (Llamante) y Canal 1 (Agente)
   let offset = 44;
   for (let i = 0; i < numSamples; i++) {
-    // Channel 0 sample (Caller)
+    // Muestra del Canal 0
     const s0 = Math.max(-1, Math.min(1, ch0[i]));
     const val0 = s0 < 0 ? s0 * 0x8000 : s0 * 0x7FFF;
     view.setInt16(offset, val0, true);
     offset += 2;
 
-    // Channel 1 sample (Agent)
+    // Muestra del Canal 1
     const s1 = Math.max(-1, Math.min(1, ch1[i]));
     const val1 = s1 < 0 ? s1 * 0x8000 : s1 * 0x7FFF;
     view.setInt16(offset, val1, true);
@@ -84,11 +85,13 @@ export function encodeStereoWav8kHz(audioBuffer) {
 }
 
 // ---------------------------------------------------------------------------
-// Resampling (AudioBuffer del navegador -> 8 kHz estéreo)
+// Resampling
 // ---------------------------------------------------------------------------
 
 /**
- * Resamples an arbitrary browser AudioBuffer down to 8000 Hz Stereo
+ * Hace resample de un AudioBuffer genérico del navegador a 8000 Hz Estéreo.
+ * Utiliza OfflineAudioContext para el procesamiento.
+ * 
  * @param {AudioBuffer} sourceBuffer
  * @returns {Promise<AudioBuffer>}
  */
@@ -102,17 +105,16 @@ export async function resampleTo8kHzStereo(sourceBuffer) {
   const bufferSource = offlineCtx.createBufferSource();
   bufferSource.buffer = sourceBuffer;
 
-  // Route source channel 0 to offlineCtx channel 0
   const merger = offlineCtx.createChannelMerger(2);
   const splitter = offlineCtx.createChannelSplitter(sourceBuffer.numberOfChannels);
 
   bufferSource.connect(splitter);
-  splitter.connect(merger, 0, 0); // Source Ch0 -> Target Ch0 (Caller)
+  splitter.connect(merger, 0, 0); // Ch0 a Ch0
 
   if (sourceBuffer.numberOfChannels > 1) {
-    splitter.connect(merger, 1, 1); // Source Ch1 -> Target Ch1 (Agent)
+    splitter.connect(merger, 1, 1); // Ch1 a Ch1
   } else {
-    // If mono mic recording, duplicate or generate a quiet synthetic tone/comfort noise for channel 1
+    // Duplicar canal si es mono
     splitter.connect(merger, 0, 1);
   }
 
@@ -123,13 +125,13 @@ export async function resampleTo8kHzStereo(sourceBuffer) {
 }
 
 // ---------------------------------------------------------------------------
-// Parsing de WAV (respeta el payload crudo, sin decodificar audio)
+// Parsing de metadatos WAV
 // ---------------------------------------------------------------------------
 
 /**
- * Parses the RIFF/WAVE header of a WAV ArrayBuffer without decoding the payload.
- * Returns { audioFormat, channels, sampleRate, bitsPerSample, dataSize, dataOffset }
- * or null when the buffer is not a valid RIFF/WAVE file.
+ * Lee la cabecera RIFF/WAVE sin decodificar el contenido.
+ * Devuelve metadata o null si es inválido.
+ * 
  * @param {ArrayBuffer} arrayBuffer
  */
 export function inspectWavMetadata(arrayBuffer) {
@@ -180,11 +182,11 @@ export function inspectWavMetadata(arrayBuffer) {
 }
 
 /**
- * Reads raw interleaved PCM samples directly from a WAV ArrayBuffer (no decode).
- * Returns { channel0, channel1 } as Float32Array (normalized -1..1).
- * Mono sources are duplicated to both channels; >2 channels are reduced to the first two.
+ * Lee muestras PCM directamente del ArrayBuffer sin decodificar el WAV entero.
+ * Devuelve { channel0, channel1 } normalizados (-1 a 1).
+ * 
  * @param {ArrayBuffer} arrayBuffer
- * @param {object} meta A valid result from inspectWavMetadata
+ * @param {object} meta Metadata generada por inspectWavMetadata
  */
 export function readWavPcmSamples(arrayBuffer, meta) {
   const view = new DataView(arrayBuffer);
@@ -231,13 +233,11 @@ function readPcmSample(view, offset, meta) {
 }
 
 // ---------------------------------------------------------------------------
-// Codificación Base64
+// Conversión Base64
 // ---------------------------------------------------------------------------
 
 /**
- * Converts ArrayBuffer to Base64 string
- * @param {ArrayBuffer} arrayBuffer
- * @returns {string}
+ * Convierte ArrayBuffer a Base64
  */
 export function arrayBufferToBase64(arrayBuffer) {
   let binary = '';
@@ -250,9 +250,7 @@ export function arrayBufferToBase64(arrayBuffer) {
 }
 
 /**
- * Base64 to ArrayBuffer
- * @param {string} base64
- * @returns {ArrayBuffer}
+ * Convierte Base64 a ArrayBuffer
  */
 export function base64ToArrayBuffer(base64) {
   const binaryString = window.atob(base64);
@@ -265,12 +263,11 @@ export function base64ToArrayBuffer(base64) {
 }
 
 // ---------------------------------------------------------------------------
-// Formato de tamaños (para la UI)
+// Formateo para la UI
 // ---------------------------------------------------------------------------
 
 /**
- * Human friendly byte size formatter (e.g. "24 KB")
- * @param {number} bytes
+ * Formatea un tamaño de bytes para legibilidad humana.
  */
 export function formatBytes(bytes) {
   if (bytes < 1024) return `${bytes} B`;
@@ -279,11 +276,11 @@ export function formatBytes(bytes) {
 }
 
 // ---------------------------------------------------------------------------
-// Espectrograma (STFT con ventana deslizante)
+// Espectrograma
 // ---------------------------------------------------------------------------
 
 /**
- * In-place radix-2 FFT. Requires re/im lengths to be a power of two.
+ * Transformada rápida de Fourier (FFT) in-place.
  */
 function fftRadix2(re, im) {
   const n = re.length;
@@ -326,11 +323,8 @@ function fftRadix2(re, im) {
 }
 
 /**
- * Computes a normalized spectrogram (STFT magnitude grid) from a mono channel.
- * Returns { frames, bins, data: Float32Array (frames*bins, 0..1), sampleRate, winSize, hop, duration, maxFreq }
- * or null when the channel is too short.
- * @param {Float32Array} channelData
- * @param {number} sampleRate
+ * Calcula un espectrograma (STFT) normalizado.
+ * Genera una matriz unidimensional visualizable en canvas.
  */
 export function computeSpectrogram(channelData, sampleRate = 8000, opts = {}) {
   if (!channelData || channelData.length === 0) return null;
@@ -390,11 +384,11 @@ export function computeSpectrogram(channelData, sampleRate = 8000, opts = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Datos de demostración
+// Simulación de Escenarios (Demos UI)
 // ---------------------------------------------------------------------------
 
 /**
- * Generates synthetic mock call data for test demonstrations (Human or Deepfake)
+ * Genera datos de llamada de simulación (Humano o Deepfake) para UI demos.
  */
 export function generateMockScenario(type = 'deepfake') {
   const sampleRate = 8000;
@@ -407,21 +401,17 @@ export function generateMockScenario(type = 'deepfake') {
   for (let i = 0; i < totalSamples; i++) {
     const t = i / sampleRate;
 
-    // Agent speaks during t = 0s to 2.2s and 4.2s to 5.0s
     if ((t >= 0.2 && t <= 2.2) || (t >= 4.2 && t <= 5.2)) {
       ch1[i] = Math.sin(2 * Math.PI * 220 * t) * 0.4 * (0.8 + 0.2 * Math.sin(10 * t)) * (Math.random() * 0.15 + 0.85);
     }
 
-    // Caller speaks during t = 2.4s to 4.1s and 5.3s to 6.0s
     if ((t >= 2.4 && t <= 4.1) || (t >= 5.3 && t <= 5.9)) {
       if (type === 'deepfake') {
-        // Flat pitch, unnatural harmonic frequency typical of neural vocoders (e.g. Hifi-GAN / ElevenLabs)
         const fundamental = Math.sin(2 * Math.PI * 185 * t);
         const harmonic = 0.5 * Math.sin(2 * Math.PI * 370 * t);
-        const glitch = 0.2 * Math.sin(2 * Math.PI * 3800 * t); // Telephony upper band artifact
+        const glitch = 0.2 * Math.sin(2 * Math.PI * 3800 * t);
         ch0[i] = (fundamental + harmonic + glitch) * 0.5;
       } else {
-        // Natural human speech: prosody variation, subtle breathing and irregular pauses
         const naturalPitch = 140 + 25 * Math.sin(3 * t);
         ch0[i] = Math.sin(2 * Math.PI * naturalPitch * t) * (0.3 + 0.3 * Math.sin(8 * t)) * (Math.random() * 0.3 + 0.7);
       }
@@ -474,20 +464,17 @@ El tono presenta inflexiones orgánicas, respiración audible entre frases y un 
 }
 
 // ---------------------------------------------------------------------------
-// Clientes de API
+// Peticiones al API
 // ---------------------------------------------------------------------------
 
 /**
- * Calls the frontend WAV POST /detect_wav endpoint.
- * Sends the raw WAV as multipart/form-data under the field `file`,
- * matching the FastAPI contract (UploadFile `file`).
+ * Envía un archivo WAV a POST /detect_wav como multipart/form-data.
  */
 export async function callDetectApi(baseUrl, base64Audio) {
   const url = `${baseUrl.replace(/\/+$/, '')}/detect_wav`;
 
   const fileBytes = base64ToArrayBuffer(base64Audio);
   if (!fileBytes || fileBytes.byteLength < 44) {
-    // Not a real WAV payload (e.g. preloaded placeholder base64) -> demo fallback
     throw new Error('No raw WAV payload available; showing demo verdict.');
   }
 
@@ -501,24 +488,6 @@ export async function callDetectApi(baseUrl, base64Audio) {
   });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status} from /detect_wav`);
-  }
-  return await response.json();
-}
-
-/**
- * Calls the live streaming POST /detect_streaming endpoint.
- * Nota: el flujo en vivo real se hace por el WebSocket /ws/detect; este
- * helper se conserva como fallback por si se requiere HTTP puro.
- */
-export async function callDetectStreamingApi(baseUrl, payload) {
-  const url = `${baseUrl.replace(/\/+$/, '')}/detect_streaming`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status} from /detect_streaming`);
   }
   return await response.json();
 }

@@ -1,3 +1,9 @@
+/**
+ * AuraVoice - Tubería Forense (ForensicPipeline.jsx)
+ * 
+ * Componente visual que ilustra los pasos sucesivos del proceso de ingesta
+ * (validación de formato, resampleo) y análisis de inferencia del modelo.
+ */
 import React from 'react';
 import { CheckCircle2, Circle, Loader2, XCircle, Radar, Terminal } from 'lucide-react';
 

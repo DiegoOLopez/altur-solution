@@ -1,3 +1,8 @@
+/**
+ * AuraVoice - Logo del Proyecto (ChameleonLogo.jsx)
+ * 
+ * Componente SVG que dibuja el isotipo y el logotipo del proyecto AuraVoice.
+ */
 import React from 'react';
 
 /**

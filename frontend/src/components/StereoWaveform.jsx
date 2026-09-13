@@ -1,3 +1,9 @@
+/**
+ * AuraVoice - Visor de Forma de Onda (StereoWaveform.jsx)
+ * 
+ * Renderiza la forma de onda estéreo del archivo de audio (Canal 0: llamante,
+ * Canal 1: agente) utilizando canvas. Permite reproducir y pausar el audio.
+ */
 import React, { useRef, useEffect, useState } from 'react';
 import { Play, Pause, RotateCcw, AlertCircle } from 'lucide-react';
 

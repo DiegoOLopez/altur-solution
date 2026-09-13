@@ -1,3 +1,9 @@
+/**
+ * AuraVoice - Señales de Detección (DetectionSignals.jsx)
+ * 
+ * Componente visual que muestra las señales extraídas por el modelo Wav2Vec2
+ * (frecuencias, formantes, latencia) y cómo aportan al cálculo del LLR total.
+ */
 import React from 'react';
 import {
   Waves,

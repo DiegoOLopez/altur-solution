@@ -1,3 +1,9 @@
+/**
+ * AuraVoice - Historial de Llamadas (CallHistory.jsx)
+ * 
+ * Muestra el registro local (en memoria) de las últimas 5 llamadas
+ * analizadas durante la sesión activa (batch o streaming).
+ */
 import React from 'react';
 import { ShieldAlert, ShieldCheck } from 'lucide-react';
 

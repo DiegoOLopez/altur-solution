@@ -1,3 +1,11 @@
+/**
+ * AuraVoice - Centro de Revisión (ReviewHub.jsx)
+ * 
+ * Permite a los agentes humanos auditar los audios procesados previamente.
+ * Se comunica con la base de datos MySQL (vía los endpoints /review/*)
+ * para listar, reproducir y clasificar grabaciones, así como lanzar el
+ * reentrenamiento automático del modelo con los nuevos audios clasificados.
+ */
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {

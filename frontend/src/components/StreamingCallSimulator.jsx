@@ -1,3 +1,10 @@
+/**
+ * AuraVoice - Simulador de Llamada en Vivo (StreamingCallSimulator.jsx)
+ * 
+ * Implementa el flujo de análisis en tiempo real mediante WebSockets (/ws/detect).
+ * Captura audio del micrófono usando AudioWorkletProcessor, resamplea si es 
+ * necesario y envía chunks continuos al servidor para evaluación en vivo.
+ */
 import React, { useEffect, useRef, useState } from "react";
 import { Activity, CircleStop, Mic, Radio, Server, Wifi } from "lucide-react";
 
