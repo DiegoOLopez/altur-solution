@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Check,
   ChevronDown,
@@ -251,7 +252,7 @@ export default function ReviewHub() {
       <section className="review-list-section"><button className="review-section-heading" onClick={() => setIsExpanded((current) => !current)} aria-expanded={isExpanded}><span><span className="review-section-icon"><Headphones size={18} /></span><span><strong>Revisar notas</strong><small>{isLoading ? 'Cargando notas...' : `${notes.length} notas esperan tu revisión`}</small></span></span><ChevronDown className={isExpanded ? 'rotate' : ''} size={21} /></button>{isExpanded && <div className="review-notes-list">{error && <p className="review-error-message">{error}</p>}{isLoading ? <div className="review-empty-state"><span>Cargando notas...</span></div> : notes.length ? notes.map((note) => <NoteRow key={note.id} note={note} playing={playingId === note.id} selectedClassification={selections[note.id]} onPlay={() => playAudio(note)} onSelect={(classification) => setSelections((current) => ({ ...current, [note.id]: classification }))} onConfirm={() => confirmClassification(note.id)} isSaving={savingId === note.id} />) : <div className="review-empty-state"><Check size={20} /><strong>Todo revisado</strong><span>Ya clasificaste todas las notas de esta sesión.</span></div>}</div>}</section>
     </div>
     {trainingStatus.status === 'training' && <aside className="review-training-tooltip" role="status" aria-live="polite"><div className="review-training-tooltip-header"><Sparkles size={16} /><strong>Entrenamiento en segundo plano</strong><span>{trainingStatus.progress}%</span></div><div className="review-training-progress"><i style={{ width: `${trainingStatus.progress}%` }} /></div><p>{trainingStatus.step}</p><small>No puedes iniciar otro entrenamiento hasta que este termine.</small><button className="review-training-cancel" onClick={cancelTraining} disabled={isCancellingTraining}>{isCancellingTraining ? 'Cancelando...' : 'Cancelar entrenamiento'}</button></aside>}
-    {isTrainingOpen && <div className="review-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeTrainingModal(); }}><section className="review-training-modal" role="dialog" aria-modal="true" aria-labelledby="review-training-title"><button className="review-close-button" onClick={closeTrainingModal} aria-label="Cerrar"><X size={18} /></button><div className="review-modal-symbol"><Sparkles size={22} /></div><p className="review-eyebrow">NUEVA VERSIÓN</p><h2 id="review-training-title">Entrenar modelo</h2>
+    {isTrainingOpen && createPortal(<div className="review-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeTrainingModal(); }}><section className="review-training-modal" role="dialog" aria-modal="true" aria-labelledby="review-training-title"><button className="review-close-button" onClick={closeTrainingModal} aria-label="Cerrar"><X size={18} /></button><div className="review-modal-symbol"><Sparkles size={22} /></div><p className="review-eyebrow">NUEVA VERSIÓN</p><h2 id="review-training-title">Entrenar modelo</h2>
       {trainingResult ? (
         <div className="review-training-success">
           <p><strong>¡Modelo entrenado con éxito!</strong></p>
@@ -269,6 +270,6 @@ export default function ReviewHub() {
           <form onSubmit={submitTraining}><label htmlFor="review-model-name">Nombre del modelo</label><div className="review-input-wrap"><input id="review-model-name" ref={inputRef} value={modelName} onChange={(event) => setModelName(event.target.value)} placeholder="Ej. Vocalis primavera" disabled={isTraining} /><span><CornerDownLeft size={13} />Intro</span></div><button className="review-primary-button review-modal-submit" type="submit" disabled={isTraining || !modelName.trim()}>{isTraining ? 'Entrenando...' : 'Comenzar entrenamiento'} <Sparkles size={16} /></button></form>
         </>
       )}
-    </section></div>}
+    </section></div>, document.body)}
   </div>;
 }
